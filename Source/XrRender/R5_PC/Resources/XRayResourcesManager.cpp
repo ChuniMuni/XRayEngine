@@ -19,16 +19,16 @@ XRayResourcesManager::XRayResourcesManager()
 {
 	{
 		BearSamplerDescription SamplerDescription;
-		SamplerDescription.Filter = SF_ANISOTROPIC;
+		SamplerDescription.Filter = BearSamplerFilter::Anisotropic;
 		SamplerDescription.MaxAnisotropy = 4;
 		SamplerDefault = BearRenderInterface::CreateSampler(SamplerDescription);
 	}
 	{
 		BearSamplerDescription SamplerDescription;
-		SamplerDescription.AddressU = SAM_CLAMP;
-		SamplerDescription.AddressV = SAM_CLAMP;
-		SamplerDescription.AddressW = SAM_CLAMP;
-		SamplerDescription.Filter = SF_COMPARISON_MIN_MAG_MIP_POINT;
+		SamplerDescription.AddressU = BearSamplerAddressMode::Clamp;
+		SamplerDescription.AddressV = BearSamplerAddressMode::Clamp;
+		SamplerDescription.AddressW = BearSamplerAddressMode::Clamp;
+		SamplerDescription.Filter = BearSamplerFilter::ComparisonMinMagMipPoint;
 		//	SamplerDescription.MaxAnisotropy = 16;
 		SamplerNoFilter = BearRenderInterface::CreateSampler(SamplerDescription);
 	}
@@ -37,28 +37,28 @@ XRayResourcesManager::XRayResourcesManager()
 	}
 	{
 		BearSamplerDescription SamplerDescription;
-		SamplerDescription.AddressU = SAM_CLAMP;
-		SamplerDescription.AddressV = SAM_CLAMP;
-		SamplerDescription.AddressW = SAM_CLAMP;
-		SamplerDescription.Filter = SF_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+		SamplerDescription.AddressU = BearSamplerAddressMode::Clamp;
+		SamplerDescription.AddressV = BearSamplerAddressMode::Clamp;
+		SamplerDescription.AddressW = BearSamplerAddressMode::Clamp;
+		SamplerDescription.Filter = BearSamplerFilter::ComparisonMinMagLinearMipPoint;
 		//	SamplerDescription.MaxAnisotropy = 16;
 		SamplerNoFilter = BearRenderInterface::CreateSampler(SamplerDescription);
 	}
 	{
 		BearSamplerDescription SamplerDescription;
-		SamplerDescription.AddressU = SAM_WRAP;
-		SamplerDescription.AddressV = SAM_WRAP;
-		SamplerDescription.AddressW = SAM_WRAP;
-		SamplerDescription.Filter = SF_COMPARISON_MIN_MAG_MIP_LINEAR;
+		SamplerDescription.AddressU = BearSamplerAddressMode::Wrap;
+		SamplerDescription.AddressV = BearSamplerAddressMode::Wrap;
+		SamplerDescription.AddressW = BearSamplerAddressMode::Wrap;
+		SamplerDescription.Filter = BearSamplerFilter::ComparisonMinMagMipLinear;
 		//	SamplerDescription.MaxAnisotropy = 16;
 		SamplerLinear = BearRenderInterface::CreateSampler(SamplerDescription);
 	}
 	{
 		BearSamplerDescription SamplerDescription;
-		SamplerDescription.AddressU = SAM_CLAMP;
-		SamplerDescription.AddressV = SAM_CLAMP;
-		SamplerDescription.AddressW = SAM_CLAMP;
-		SamplerDescription.Filter = SF_COMPARISON_MIN_MAG_MIP_LINEAR;
+		SamplerDescription.AddressU = BearSamplerAddressMode::Clamp;
+		SamplerDescription.AddressV = BearSamplerAddressMode::Clamp;
+		SamplerDescription.AddressW = BearSamplerAddressMode::Clamp;
+		SamplerDescription.Filter = BearSamplerFilter::ComparisonMinMagMipLinear;
 		//	SamplerDescription.MaxAnisotropy = 16;
 		SamplerRTLinear = BearRenderInterface::CreateSampler(SamplerDescription);
 	}
@@ -362,14 +362,14 @@ BearFactoryPointer<BearRHI::BearRHIShader> XRayResourcesManager::GetPixelShader(
 		}
 		BearMap<BearStringConteniar, BearStringConteniar> Defines;
 		{
-		
+#ifdef DEBUG
 			BearString out;
 			if (XRayRenderConsole::ps_r_mesh_shader_debug&&HW->MeshShaderSupport())
 			{
 				Defines["MESH_SHADER_DEBUG"] = "1";
 			}
 			XRayShaderIncluder Includer(::Render->getShaderPath(), local_path);
-			if (!shader->LoadAsText(Text.c_str(), Defines, out,&Includer))
+			if (!shader->LoadAsText(Text.c_str(),TEXT("Main"), Defines, out,&Includer,"",""))
 			{
 				Msg(TEXT("------------------------------------------------------------------------"));
 				Msg(*out);
@@ -382,6 +382,7 @@ BearFactoryPointer<BearRHI::BearRHIShader> XRayResourcesManager::GetPixelShader(
 				Msg(*out);
 				Msg(TEXT("------------------------------------------------------------------------"));
 			}
+#endif
 		}
 #endif
 		m_PShaders.insert(std::pair< shared_str, BearFactoryPointer<BearRHI::BearRHIShader>>(name, shader));
@@ -439,14 +440,14 @@ BearFactoryPointer<BearRHI::BearRHIShader> XRayResourcesManager::GetVertexShader
 		}
 		BearMap<BearStringConteniar, BearStringConteniar> Defines;
 		{
-
+#ifdef DEBUG
 			BearString out;
 			if (XRayRenderConsole::ps_r_mesh_shader_debug && HW->MeshShaderSupport())
 			{
 				Defines["MESH_SHADER_DEBUG"] = "1";
 			}
 			XRayShaderIncluder Includer(::Render->getShaderPath(), local_path);
-			if (!shader->LoadAsText(Text.c_str(), Defines, out, &Includer))
+			if (!shader->LoadAsText(Text.c_str(), TEXT("Main"), Defines, out, &Includer, "", ""))
 			{
 				Msg(TEXT("------------------------------------------------------------------------"));
 				Msg(*out);
@@ -459,6 +460,7 @@ BearFactoryPointer<BearRHI::BearRHIShader> XRayResourcesManager::GetVertexShader
 				Msg(*out);
 				Msg(TEXT("------------------------------------------------------------------------"));
 			}
+#endif
 		}
 #endif
 		m_VShaders.insert(std::pair< shared_str, BearFactoryPointer<BearRHI::BearRHIShader>>(name, shader));
@@ -520,11 +522,11 @@ BearFactoryPointer<BearRHI::BearRHIShader> XRayResourcesManager::GetMeshShader(s
 		}
 		Defines["GROUP_SIZE"] = *BearString().append_printf("%d", XRayRenderConsole::ps_r_mesh_shader_thread);
 		{
-
+#ifdef DEBUG
 
 			BearString out;
 			XRayShaderIncluder Includer(::Render->getShaderPath(), local_path);
-			if (!shader->LoadAsText(Text.c_str(), Defines, out, &Includer))
+			if (!shader->LoadAsText(Text.c_str(), TEXT("Main"), Defines, out, &Includer, "", ""))
 			{
 				Msg(TEXT("------------------------------------------------------------------------"));
 				Msg(*out);
@@ -537,6 +539,7 @@ BearFactoryPointer<BearRHI::BearRHIShader> XRayResourcesManager::GetMeshShader(s
 				Msg(*out);
 				Msg(TEXT("------------------------------------------------------------------------"));
 			}
+#endif
 		}
 #endif
 		m_MShaders.insert(std::pair< shared_str, BearFactoryPointer<BearRHI::BearRHIShader>>(name, shader));

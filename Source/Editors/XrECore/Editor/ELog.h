@@ -17,10 +17,11 @@ enum TMsgDlgButtons
 	mbYes=1,
 	mbNo=2,
 	mbCancel=4,
+	mbOK = 8,
+	mrNone = 0,
 	mrYes,
 	mrNo,
 	mrCancel,
-	mbOK=8,
 	mrOK,
 };
 class ECORE_API CLog{
@@ -30,7 +31,8 @@ public:
 				CLog	(){in_use=false;}
 	void 		Msg   	(TMsgDlgType mt, LPCSTR _Format, ...);
 	int 		DlgMsg 	(TMsgDlgType mt, LPCSTR _Format, ...);
-	int 		DlgMsg 	(TMsgDlgType mt, TMsgDlgButtons btn, LPCSTR _Format, ...);
+	int 		DlgMsg 	(TMsgDlgType mt, int btn, LPCSTR _Format, ...);
+	void Close();
 };
 
 void ECORE_API ELogCallback(LPCSTR txt);

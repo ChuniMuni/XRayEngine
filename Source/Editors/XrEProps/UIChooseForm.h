@@ -5,16 +5,21 @@ class XREPROPS_API UIChooseForm :
     virtual void DrawItem(Node* Node);
     virtual bool IsDrawFloder(Node* Node);
     void AppendItem(SChooseItem& item);
+    void UpdateTexture();
     Node m_GeneralNode;
     ImTextureID m_Texture;
     ImGuiTextFilter m_Filter;
 private:
     int 			iMultiSelLimit;
+    int             iSelectedInList;
     UIPropertiesForm* m_Props;
     Flags32  m_Flags;
     xr_string m_Title;
-    SChooseItem* m_SelectedItem;
+    xr_vector<SChooseItem*>m_SelectedItems;
+
+    inline SChooseItem* GetSelectedItem() { if (m_SelectedItems.size()) { return m_SelectedItems.back(); }return nullptr; }
     SChooseItem* m_ClickItem;
+    SChooseItem* m_SelectedItem;
     SChooseItem m_ItemNone;
     ChooseItemVec	m_Items;
     u32 m_ChooseID;
@@ -43,7 +48,10 @@ public:
     virtual void Draw();
     static void SetNullTexture(ImTextureID Texture);
     static void Update();
+    static bool IsActive();
     static bool GetResult(bool&change,shared_str&result);
+    static bool GetResult(bool& change, xr_string& result);
+    static bool GetResult(bool& change, xr_vector<xr_string>& result);
     static void SelectItem(u32 choose_ID,  int sel_cnt = 1, LPCSTR init_name = 0, TOnChooseFillItems item_fill = 0, void* fill_param = 0, TOnChooseSelectItem item_select = 0, ChooseItemVec* items = 0, u32 flags = cfAllowNone);
     static void AppendEvents(u32 choose_ID, LPCSTR caption, TOnChooseFillItems on_fill, TOnChooseSelectItem on_sel, TGetTexture on_thm, TOnChooseClose on_close, u32 flags);
     static void ClearEvents();

@@ -24,12 +24,14 @@ void	   _BCL			CEditorRenderDevice::RemoveSeqFrame(pureFrame* f) { seqFrame.Remo
 //---------------------------------------------------------------------------
 CEditorRenderDevice::CEditorRenderDevice()
 {
+	RadiusRender = 400;
 	psDeviceFlags.assign(rsStatistic|rsFilterLinear|rsFog|rsDrawGrid);
 // dynamic buffer size
 	rsDVB_Size		= 2048;
 	rsDIB_Size		= 2048;
 // default initialization
     m_ScreenQuality = 1.f;
+	dwMaximized = 0;
     dwWidth 		= dwHeight 	= 256;
     m_RenderWidth 	= m_RenderHeight 		= 256;
 	mProject.identity();
@@ -92,6 +94,12 @@ void CEditorRenderDevice::Initialize()
 	Create				();
 
     ::Render->Initialize();
+
+	Resize(EPrefs->start_w, EPrefs->start_h, EPrefs->start_maximized);
+	HW.updateWindowProps(m_hWnd);
+
+
+	::ShowWindow(m_hWnd, EPrefs->start_maximized? SW_SHOWMAXIMIZED: SW_SHOWDEFAULT);
 }
 
 void CEditorRenderDevice::ShutDown()
@@ -136,9 +144,18 @@ bool CEditorRenderDevice::Create()
 	ELog.Msg(mtInformation,"Starting RENDER device...");
 
 
-	HW.CreateDevice		(m_hWnd, false);
-
-	if (UI)UI->Initialize(m_hWnd, HW.pDevice);
+	HW.CreateDevice		(m_hWnd, true);
+	if (UI)
+	{	
+		string_path 		ini_path;
+		string_path			ini_name;
+		xr_strcpy			(ini_name, UI->EditorName());
+		xr_strcat			(ini_name, "_imgui.ini");
+		FS.update_path(ini_path, "$local_root$", ini_name);
+		if (!FS.exist(ini_path))UI->ResetUI();
+		UI->Initialize(m_hWnd, HW.pDevice, ini_path);
+	}
+	
 	// after creation
 	dwFrame				= 0;
 
@@ -252,23 +269,16 @@ void CEditorRenderDevice::_Destroy(BOOL	bKeepTextures)
 }
 
 //---------------------------------------------------------------------------
-void  CEditorRenderDevice::Resize(int w, int h)
+void  CEditorRenderDevice::Resize(int w, int h, bool maximized)
 {
-	if (dwWidth == w && dwHeight == h)return;
+	if (dwWidth == w && dwHeight == h&& dwMaximized == maximized)return;
     m_RenderArea	= w*h;
 
 	dwWidth = w;
 	dwHeight = h;
-
-    fASPECT 		= (float)dwHeight / (float)dwWidth;
-    mProject.build_projection( deg2rad(fFOV), fASPECT, m_Camera.m_Znear, m_Camera.m_Zfar );
-    m_fNearer 		= mProject._43;
+	dwMaximized = maximized;
 
     Reset			();
-
-    RCache.set_xform_project(mProject);
-    RCache.set_xform_world	(Fidentity);
-
     UI->RedrawScene	();
 }
 
@@ -294,19 +304,11 @@ void CEditorRenderDevice::Reset  	()
 
 BOOL CEditorRenderDevice::Begin	()
 {
-	MSG msg;
-	do
-	{
-		ZeroMemory(&msg, sizeof(msg));
-		if (::PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
-		{
-			::TranslateMessage(&msg);
-			::DispatchMessage(&msg);
-			continue;
-		}
-		R_ASSERT(msg.message != WM_QUIT);
-	} while (msg.message);
 	VERIFY(b_is_Ready);
+	mFullTransform_saved = mFullTransform;
+	mProject_saved = mProject;
+	mView = mView_saved;
+	vCameraPosition_saved = vCameraPosition;
 	HW.Validate		();
 	HRESULT	_hr		= HW.pDevice->TestCooperativeLevel();
     if (FAILED(_hr))
@@ -341,18 +343,7 @@ void CEditorRenderDevice::End()
 {
 	VERIFY(HW.pDevice);
 	VERIFY(b_is_Ready);
-
-
-    
-
 	g_bRendering = 	FALSE;
-	if (UI)
-	{
-		EDevice.SetRS(D3DRS_FILLMODE,D3DFILL_SOLID);
-		UI->Draw();
-		EDevice.SetRS(D3DRS_FILLMODE, EDevice.dwFillMode);
-	}
-
 	// end scene
 	RCache.OnFrameEnd();
     CHK_DX(HW.pDevice->EndScene());
@@ -450,7 +441,7 @@ void CEditorRenderDevice::CreateWindow()
 	m_WC = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, TEXT("XRay Editor"), NULL };
 	::RegisterClassEx(&m_WC);
 	m_hWnd= ::CreateWindowA(m_WC.lpszClassName, TEXT("XRay Editor"), WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, NULL, NULL, m_WC.hInstance, NULL);
-	::ShowWindow(m_hWnd, SW_SHOWDEFAULT);
+	
 	::UpdateWindow(m_hWnd);
 }
 void CEditorRenderDevice::DestryWindow()
@@ -460,16 +451,49 @@ void CEditorRenderDevice::DestryWindow()
 }
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	switch (msg)
+	{
+	case WM_ACTIVATE:
+	{
+		u16 fActive = LOWORD(wParam);
+		BOOL fMinimized = (BOOL)HIWORD(wParam);
+		BOOL bActive = ((fActive != WA_INACTIVE) && (!fMinimized)) ? TRUE : FALSE;
+		if (bActive != EDevice.b_is_Active)
+		{
+			EDevice.b_is_Active = bActive;
+
+			if (EDevice.b_is_Active)
+			{
+				if (UI)UI->OnAppActivate();
+			}
+			else
+			{
+				
+				if (UI)UI->OnAppDeactivate();
+			}
+		}
+	}
+	break;
+	}
 	if (UI &&UI->WndProcHandler(hWnd, msg, wParam, lParam))
 		return true;
 
 	switch (msg)
 	{
+	case WM_KEYDOWN: 
+	case WM_SYSKEYDOWN:
+		if(UI)UI->KeyDown(wParam,UI->GetShiftState());
+		break;
+	case WM_KEYUP:
+	case WM_SYSKEYUP:
+		if (UI)UI->KeyUp(wParam, UI->GetShiftState());
+		break;
+	
 	case WM_SIZE:
 
 		if (UI && HW.pDevice)
 		{
-			UI->Resize(LOWORD(lParam), HIWORD(lParam));
+			UI->Resize(LOWORD(lParam), HIWORD(lParam), wParam == SIZE_MAXIMIZED);
 		}
 		/*if (g_pd3dDevice != NULL && wParam != SIZE_MINIMIZED)
 		{
@@ -478,9 +502,13 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			ResetDevice();
 		}*/
 		return 0;
+	
 	case WM_SYSCOMMAND:
+
 		if ((wParam & 0xfff0) == SC_KEYMENU) // Disable ALT application menu
+		{
 			return 0;
+		}
 		break;
 	case WM_DESTROY:
 		::PostQuitMessage(0);

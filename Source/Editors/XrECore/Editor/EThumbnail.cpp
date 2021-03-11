@@ -88,6 +88,13 @@ void EImageThumbnail::CreatePixels(u32* p, u32 w, u32 h)
 }
 void EImageThumbnail::Update(ImTextureID& Texture)
 {
+    if (m_Pixels.size() == 0)
+    {
+        if(Texture)
+        Texture->Release();
+        Texture == nullptr;
+        return;
+    }
     ID3DTexture2D* pTexture = nullptr;
     if (Texture != nullptr)
     {
@@ -105,7 +112,7 @@ void EImageThumbnail::Update(ImTextureID& Texture)
         {
 
             unsigned char* dest = static_cast<unsigned char*>(rect.pBits)+(rect.Pitch*i);
-            memcpy(dest, Pixels()+(THUMB_WIDTH*i), sizeof(unsigned char) * THUMB_WIDTH  * 4);
+            memcpy(dest, Pixels()+(THUMB_WIDTH*(THUMB_HEIGHT-i-1)), sizeof(unsigned char) * THUMB_WIDTH  * 4);
         }
         R_CHK(pTexture->UnlockRect(0));
     }

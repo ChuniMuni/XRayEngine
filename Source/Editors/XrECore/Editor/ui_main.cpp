@@ -11,6 +11,7 @@
 #include "SoundManager.h"
 #include "PSLibrary.h"
 
+#include "UIEditLightAnim.h"
 #include "UIImageEditorForm.h"
 #include "UISoundEditorForm.h"
 #include "UIMinimapEditorForm.h"
@@ -21,7 +22,9 @@ TUI* 	UI			= 0;
 
 TUI::TUI()
 {
+    m_HConsole = 0;
 	UI				= this;
+    m_AppClosed = false;
     m_bAppActive 	= false;
 	m_bReady 		= false;
     bNeedAbort   	= false;
@@ -118,7 +121,7 @@ void TUI::MousePress(TShiftState Shift, int X, int Y)
 				IR_GetMousePosScreen(m_StartCpH);
                 m_DeltaCpH.set(0,0);
             }else{
-                IR_GetMousePosReal(EDevice.m_hWnd, m_CurrentCp);
+                m_CurrentCp = GetRenderMousePosition();
                 m_StartCp = m_CurrentCp;
                 EDevice.m_Camera.MouseRayFromPoint(m_CurrentRStart, m_CurrentRDir, m_CurrentCp );
             }
@@ -144,7 +147,7 @@ void TUI::MouseRelease(TShiftState Shift, int X, int Y)
 	    bMouseInUse = false;
         if( m_MouseCaptured ){
             if( !Tools->HiddenMode() ){
-                IR_GetMousePosReal(EDevice.m_hWnd, m_CurrentCp);
+                m_CurrentCp = GetRenderMousePosition();
                 EDevice.m_Camera.MouseRayFromPoint(m_CurrentRStart,m_CurrentRDir,m_CurrentCp );
             }
             if( Tools->MouseEnd(m_ShiftState) ){
@@ -186,7 +189,7 @@ void TUI::IR_OnMouseMove(int x, int y)
             }
             else
             {
-                IR_GetMousePosReal(EDevice.m_hWnd, m_CurrentCp);
+                m_CurrentCp = GetRenderMousePosition();
                 EDevice.m_Camera.MouseRayFromPoint(m_CurrentRStart,m_CurrentRDir,m_CurrentCp);
                 Tools->MouseMove(m_ShiftState);
             }
@@ -196,7 +199,7 @@ void TUI::IR_OnMouseMove(int x, int y)
     }
     if (!bRayUpdated)
     {
-		IR_GetMousePosReal(EDevice.m_hWnd, m_CurrentCp);
+        m_CurrentCp = GetRenderMousePosition();
         EDevice.m_Camera.MouseRayFromPoint(m_CurrentRStart,m_CurrentRDir,m_CurrentCp);
     }
     // Out cursor pos
@@ -206,26 +209,26 @@ void TUI::IR_OnMouseMove(int x, int y)
 
 void TUI::OnAppActivate()
 {
-	VERIFY(m_bReady);
+    m_bAppActive = true;
+    if (!m_bReady)return;
 	if (pInput){
         m_ShiftState = ssNone;
      	pInput->OnAppActivate();
         EDevice.seqAppActivate.Process	(rp_AppActivate);
     }
-    m_bAppActive 	= true;
 }
 //---------------------------------------------------------------------------
 
 void TUI::OnAppDeactivate()
 {
-	VERIFY(m_bReady);
+    m_bAppActive = false;
+    if (!m_bReady)return;
 	if (pInput){
 		pInput->OnAppDeactivate();
         m_ShiftState = ssNone;
         EDevice.seqAppDeactivate.Process(rp_AppDeactivate);
     }
     HideHint();
-    m_bAppActive 	= false;
 }
 //---------------------------------------------------------------------------
 
@@ -353,12 +356,13 @@ void TUI::PrepareRedraw()
 
     RCache.set_xform_world	(Fidentity);
 }
+extern ENGINE_API BOOL g_bRendering;
 void TUI::Redraw()
 {
 	PrepareRedraw();
     try{
     
-        if (u32(RTSize.x * EDevice.m_ScreenQuality) != RT->dwWidth || u32(RTSize.y * EDevice.m_ScreenQuality) != RT->dwHeight)
+        if (u32(RTSize.x * EDevice.m_ScreenQuality) != RT->dwWidth || u32(RTSize.y * EDevice.m_ScreenQuality) != RT->dwHeight|| !RT->pSurface)
         {
             GetRenderWidth() = RTSize.x * EDevice.m_ScreenQuality;
             GetRenderHeight() = RTSize.y * EDevice.m_ScreenQuality;
@@ -367,15 +371,23 @@ void TUI::Redraw()
             RT.create("rt_color", RTSize.x * EDevice.m_ScreenQuality, RTSize.y * EDevice.m_ScreenQuality, HW.Caps.fTarget);
             ZB.create("rt_depth", RTSize.x * EDevice.m_ScreenQuality, RTSize.y * EDevice.m_ScreenQuality, D3DFORMAT::D3DFMT_D24X8);
             m_Flags.set(flRedraw, TRUE);
+            EDevice.fASPECT = ((float)RTSize.y) / ((float)RTSize.x);
+            EDevice.mProject.build_projection(deg2rad(EDevice.fFOV), EDevice.fASPECT, EDevice.m_Camera.m_Znear, EDevice.m_Camera.m_Zfar);
+            EDevice.m_fNearer = EDevice.mProject._43;
+            
+
+            RCache.set_xform_project(EDevice.mProject);
+            RCache.set_xform_world(Fidentity);
         }
 
         if (EDevice.Begin())
         {
+            if (psDeviceFlags.is(rsRenderRealTime))
+                m_Flags.set(flRedraw, TRUE);
             if (m_Flags.is(flRedraw))
             {
-                if (!psDeviceFlags.is(rsRenderRealTime))
-                    m_Flags.set(flRedraw, FALSE);
-
+               
+                m_Flags.set(flRedraw, FALSE);
                 RCache.set_RT(RT->pRT);
                 RCache.set_ZB(ZB->pRT);
                 EDevice.Statistic->RenderDUMP_RT.Begin();
@@ -420,7 +432,6 @@ void TUI::Redraw()
                 // draw axis
                 DU_impl.DrawAxis(EDevice.m_Camera.GetTransform());
 
-                RDEVICE.b_is_Active = true;
 
                 EDevice.Statistic->RenderDUMP_RT.End();
                 EDevice.Statistic->Show(EDevice.pSystemFont);
@@ -428,11 +439,15 @@ void TUI::Redraw()
                 EDevice.pSystemFont->OnRender();
                 EDevice.SetRS(D3DRS_FILLMODE, EDevice.dwFillMode);
                 EDevice.seqRender.Process(rp_Render);
-                RDEVICE.b_is_Active = false;
                 RCache.set_RT(HW.pBaseRT);
                 RCache.set_ZB(HW.pBaseZB);
             }
+
             try {
+                EDevice.SetRS(D3DRS_FILLMODE, D3DFILL_SOLID);
+                g_bRendering = FALSE;
+                Draw();
+                EDevice.SetRS(D3DRS_FILLMODE, EDevice.dwFillMode);
                 // end draw
                 EDevice.End();
             }
@@ -456,7 +471,8 @@ void TUI::Redraw()
 void TUI::RealResize()
 {
     m_Flags.set			(flResize,FALSE);
-    EDevice.Resize(m_Size.x, m_Size.y);
+    if(m_Size.x&& m_Size.y)
+    EDevice.Resize(m_Size.x, m_Size.y,m_Size_Maximize);
     ExecCommand			(COMMAND_UPDATE_PROPERTIES);
 }
 void TUI::RealUpdateScene()
@@ -479,25 +495,46 @@ void TUI::OnFrame()
 	// show hint
     ShowObjectHint		();
 	ResetBreak			();
+#if 0
 	// check mail
     CheckMailslot		();
+#endif
     // Progress
     ProgressDraw		();
 }
-void TUI::Idle()         
+bool TUI::Idle()         
 {
 	VERIFY(m_bReady);
    // EDevice.b_is_Active  = Application->Active;
 	// input
+    MSG msg;
+    do
+    {
+        ZeroMemory(&msg, sizeof(msg));
+        if (::PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
+        {
+            ::TranslateMessage(&msg);
+            ::DispatchMessage(&msg);
+            if (msg.message == WM_QUIT)
+            {
+                UI->Quit();
+            }
+            continue;
+        }
+
+    } while (msg.message);
+    if (m_Flags.is(flResetUI))RealResetUI();
+
     pInput->OnFrame();
     Sleep(1);
-    if (ELog.in_use) return;
 
     OnFrame			();
+    if (m_bAppActive && !m_Flags.is(flNeedQuit) && !m_AppClosed)
     RealRedrawScene();
 
     // test quit
     if (m_Flags.is(flNeedQuit))	RealQuit();
+    return !m_AppClosed;
 }
 //---------------------------------------------------------------------------
 void ResetActionToSelect()
@@ -525,11 +562,17 @@ bool TUI::OnCreate()
 
     m_bReady		= true;
 
-    if (!CreateMailslot()){
-    	ELog.DlgMsg	(mtError,"Can't create mail slot.\nIt's possible two Editors started.");
+#if 0
+    if (!CreateMailslot()) {
+        ELog.DlgMsg(mtError, "Can't create mail slot.\nIt's possible two Editors started.");
         return 		false;
     }
-
+#endif
+    string_path log_path;
+    if (!FS.exist(log_path,_temp_,""))
+    {
+        VerifyPath(log_path);
+    }
     if (!FS.path_exist(_local_root_)){
     	ELog.DlgMsg	(mtError,"Undefined Editor local directory.");
         return 		false;
@@ -539,9 +582,16 @@ bool TUI::OnCreate()
     GetRenderWidth() = 128;
     GetRenderHeight() = 128;
     RTSize.set(GetRenderWidth(), GetRenderHeight());
+    EDevice.fASPECT = (float)RTSize.x / (float)RTSize.y;
+    EDevice.mProject.build_projection(deg2rad(EDevice.fFOV), EDevice.fASPECT, EDevice.m_Camera.m_Znear, EDevice.m_Camera.m_Zfar);
+    EDevice.m_fNearer = EDevice.mProject._43;
+
+
+    RCache.set_xform_project(EDevice.mProject);
+    RCache.set_xform_world(Fidentity);
     RT.create("rt_color", RTSize .x*EDevice.m_ScreenQuality, RTSize.y * EDevice.m_ScreenQuality, HW.Caps.fTarget);
     ZB.create("rt_depth", RTSize.x * EDevice.m_ScreenQuality, RTSize.y* EDevice.m_ScreenQuality, D3DFORMAT::D3DFMT_D24X8);
- 
+
     return true;
 }
 
@@ -549,14 +599,14 @@ void TUI::OnDestroy()
 {
     RT.destroy();
     ZB.destroy();
+
 	VERIFY(m_bReady);
 	m_bReady		= false;
 	UI->IR_Release	();
     xr_delete		(pInput);
     EndEState		();
 
-    EDevice.ShutDown	();
-    
+    EDevice.ShutDown();    
 }
 
 SPBItem* TUI::ProgressStart		(float max_val, LPCSTR text)
@@ -566,6 +616,11 @@ SPBItem* TUI::ProgressStart		(float max_val, LPCSTR text)
     m_ProgressItems.push_back	(item);
     ELog.Msg					(mtInformation,text);
     ProgressDraw				();
+    if (!m_HConsole)
+    {
+        AllocConsole();
+        m_HConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    }
 	return item;
 }
 void TUI::ProgressEnd			(SPBItem*& pbi)
@@ -576,16 +631,51 @@ void TUI::ProgressEnd			(SPBItem*& pbi)
         m_ProgressItems.erase	(it);
         xr_delete				(pbi);
         ProgressDraw			();
+        if (m_ProgressItems.size() == 0)
+        {
+            FreeConsole();
+            m_HConsole = 0;
+        }
     }
 }
 
-void TUI::RenderSpecial()
+void TUI::ProgressDraw()
+{
+    SPBItem* pbi = UI->ProgressLast();
+    if (pbi) 
+    {
+        xr_string txt;
+        float 		p, m;
+        pbi->GetInfo(txt, p, m);
+        // progress
+        int val = fis_zero(m) ? 0 : (int)((p / m) * 100);
+        string2048 out;
+        xr_sprintf(out,"[%d%%]%s\r\n", val, txt.c_str());
+        DWORD  dw;
+        WriteConsole(m_HConsole, out, xr_strlen(out), &dw, NULL);
+    }
+}
+
+void TUI::OnDrawUI()
 {
     UIKeyPressForm::Update(EDevice.fTimeGlobal);
+    UIEditLightAnim::Update();
     UIImageEditorForm::Update();
     UISoundEditorForm::Update();
     UIMinimapEditorForm::Update();
     UILogForm::Update();
+    EDevice.seqDrawUI.Process(rp_DrawUI);
+}
+
+void TUI::RealResetUI()
+{
+    m_Flags.set(flResetUI, FALSE);
+    string_path 		ini_path;
+    if (FS.exist(ini_path, "$server_data_root$", UI->EditorName(), "_imgui_default.ini"))
+    {
+        UI->Resize(1280, 800);
+        ImGui::LoadIniSettingsFromDisk(ini_path);
+    }
 }
 
 void SPBItem::GetInfo			(xr_string& txt, float& p, float& m)

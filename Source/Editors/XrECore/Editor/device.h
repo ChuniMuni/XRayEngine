@@ -44,6 +44,7 @@ public:
 
     Fmaterial				m_DefaultMat;
 public:
+	float RadiusRender;
    // u32 					dwWidth, dwHeight;
 	u32 					m_RenderWidth, m_RenderHeight;
     float					m_RenderArea;
@@ -108,7 +109,7 @@ public:
     void					time_factor		(float);
 	bool 					Create			();
 	void 					Destroy			();
-    void 					Resize			(int w, int h);
+    void 					Resize			(int w, int h,bool maximized);
 	void 					ReloadTextures	();
 	void 					UnloadTextures	();
 

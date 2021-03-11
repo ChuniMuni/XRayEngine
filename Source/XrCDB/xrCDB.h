@@ -26,24 +26,34 @@ namespace Opcode {
 	class AABBNoLeafNode;
 };
 
-#pragma pack(push,8)
+#pragma pack(push,4)
 namespace CDB
 {
 	// Triangle
-	class XRCDB_API TRI						//*** 16 bytes total (was 32 :)
+	class  TRI						//*** 16 bytes total (was 32 :)
 	{
 	public:
+		TRI() {}
 		u32				verts	[3];		// 3*4 = 12b
 		union	{
-			u32			dummy;				// 4b
-			struct {
+			
+			struct
+			{
+				u32			dummy;				// 4b
+			};
+			struct 
+			{
 				u32		material:14;		// 
 				u32		suppress_shadows:1;	// 
 				u32		suppress_wm:1;		// 
 				u32		sector:16;			// 
 			};
+
+			void* pointer;
 		};
+
 	public:
+		IC static size_t Size() { return 16; }
 		IC u32			IDvert	(u32 ID)		{ return verts[ID];	}
 	};
 
@@ -211,6 +221,7 @@ namespace CDB
 
 		void				add_face	( const Fvector& v0, const Fvector& v1, const Fvector& v2, u16 material, u16 sector, u32 flags );
 		void				add_face_D	( const Fvector& v0, const Fvector& v1, const Fvector& v2, u32 dummy , u32 flags );
+		void				add_face_D(const Fvector& v0, const Fvector& v1, const Fvector& v2, void* pointer, u32 flags);
 
 		xr_vector<Fvector>& getV_Vec()			{ return verts;				}
 		Fvector*			getV()				{ return &*verts.begin();	}

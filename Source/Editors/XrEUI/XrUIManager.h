@@ -16,11 +16,11 @@ public:
 	XrUIManager();
 	void Push(XrUI*ui,bool need_deleted =true);
 	void Draw();
-	
+		
 	virtual ~XrUIManager();
 
 	LRESULT WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-	void Initialize(HWND hWnd, IDirect3DDevice9* device);
+	void Initialize(HWND hWnd, IDirect3DDevice9* device,const char*ini_path);
 	void Destroy();
 
 	void ResetBegin();
@@ -28,13 +28,14 @@ public:
 	virtual bool 	ApplyShortCut(DWORD Key, TShiftState Shift)=0;
 
 	inline float GetMenuBarHeight()const { return m_MenuBarHeight; }
-
+	inline TShiftState GetShiftState()const { return m_ShiftState; };
 protected:
-	virtual void RenderSpecial();
+	virtual void OnDrawUI();
 private:
 	float m_MenuBarHeight;
 	void ApplyShortCut(DWORD Key);
 	TShiftState m_ShiftState;
 	xr_vector<XrUI*> m_UIArray;
+	string_path m_name_ini;
 };
 

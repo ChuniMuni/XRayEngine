@@ -6,6 +6,7 @@
 #include "ui_main.h"
 #include "UI_ToolsCustom.h"
 
+#include "UIEditLightAnim.h"
 #include "UIImageEditorForm.h"
 #include "UIMinimapEditorForm.h"
 #include "UISoundEditorForm.h"
@@ -291,13 +292,21 @@ CCommandVar 	CommandDestroy(CCommandVar p1, CCommandVar p2)
     Tools->OnDestroy	();
     SndLib->OnDestroy	();
     xr_delete			(SndLib);
+    DU_impl.DestroyObjects();
     Lib.OnDestroy		();
     UI->OnDestroy		();
     Engine.Destroy		();
+    ELog.Close();
+    for (auto& item : ECommands)
+    {
+        xr_delete(item);
+    }
+    ECommands.clear();
     return				TRUE;
 }             
 CCommandVar 	CommandQuit(CCommandVar p1, CCommandVar p2)
 {
+    if (UI->IsModified())
     UI->Quit			();
     return				TRUE;
 }             
@@ -357,6 +366,11 @@ CCommandVar 	CommandSyncSounds(CCommandVar p1, CCommandVar p2)
 CCommandVar 	CommandImageEditor(CCommandVar p1, CCommandVar p2)
 {
     UIImageEditorForm::Show(false);
+    return				TRUE;
+}
+CCommandVar 	CommandLightAnimEditor(CCommandVar p1, CCommandVar p2)
+{
+    UIEditLightAnim::Show();
     return				TRUE;
 }
 
@@ -630,7 +644,6 @@ CCommandVar 	CommandAssignMacro(CCommandVar p1, CCommandVar p2)
     }
     return FALSE;
 }
-
 void TUI::RegisterCommands()
 {
 	REGISTER_CMD_S		(COMMAND_INITIALIZE,			CommandInitialize);
@@ -659,7 +672,9 @@ void TUI::RegisterCommands()
 	REGISTER_CMD_S	    (COMMAND_SET_SETTINGS,			CommandSetSettings);
 	REGISTER_CMD_S	    (COMMAND_SOUND_EDITOR,   		CommandSoundEditor);
 	REGISTER_CMD_S	    (COMMAND_SYNC_SOUNDS,    		CommandSyncSounds);
-    REGISTER_CMD_S	    (COMMAND_IMAGE_EDITOR,   		CommandImageEditor);    REGISTER_CMD_S	    (COMMAND_MINIMAP_EDITOR,   		CommandMinimapEditor);
+    REGISTER_CMD_S	    (COMMAND_IMAGE_EDITOR,   		CommandImageEditor); 
+    REGISTER_CMD_S      (COMMAND_LIGHTANIM_EDITOR,      CommandLightAnimEditor);
+    REGISTER_CMD_S	    (COMMAND_MINIMAP_EDITOR,   		CommandMinimapEditor);
 	REGISTER_CMD_S	    (COMMAND_CHECK_TEXTURES,     	CommandCheckTextures);
 	REGISTER_CMD_S	    (COMMAND_REFRESH_TEXTURES,   	CommandRefreshTextures);	
 	REGISTER_CMD_S	    (COMMAND_RELOAD_TEXTURES,    	CommandReloadTextures);
@@ -717,9 +732,9 @@ bool TUI::ApplyShortCut(DWORD Key, TShiftState Shift)
 
     xr_shortcut SC; 
     SC.key						= Key;
-    SC.ext.assign				(u8((Shift|ssShift?xr_shortcut::flShift:0)|
-    							 (Shift|ssCtrl ?xr_shortcut::flCtrl:0)|
-                                 (Shift|ssAlt  ?xr_shortcut::flAlt:0)));
+    SC.ext.assign				(u8((Shift&ssShift?xr_shortcut::flShift:0)|
+    							 (Shift&ssCtrl ?xr_shortcut::flCtrl:0)|
+                                 (Shift&ssAlt  ?xr_shortcut::flAlt:0)));
 	SESubCommand* SUB 			= FindCommandByShortcut(SC);
 
     if (!SUB||SUB->parent->global_shortcut) 			return false;
@@ -739,7 +754,7 @@ bool TUI::ApplyGlobalShortCut(DWORD Key, TShiftState Shift)
         (Shift & ssAlt ? xr_shortcut::flAlt : 0)));
 
     if (UIKeyPressForm::SetResult(SC))return true;
-    if (Key==VK_OEM_3)ExecCommand	(COMMAND_RENDER_FOCUS); return true;
+    if (Key == VK_OEM_3) { ExecCommand(COMMAND_RENDER_FOCUS); return true; }
 
   
 	SESubCommand* SUB 			= FindCommandByShortcut(SC);

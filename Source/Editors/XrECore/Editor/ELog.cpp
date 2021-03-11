@@ -131,7 +131,7 @@ inline TMsgDlgButtons MessageDlg(const char*text, TMsgDlgType mt, int btn)
 	if (btn == mbOK)return mrOK;
 	return mrYes;
 }
-int CLog::DlgMsg (TMsgDlgType mt, TMsgDlgButtons btn, LPCSTR _Format, ...)
+int CLog::DlgMsg (TMsgDlgType mt, int btn, LPCSTR _Format, ...)
 {
     in_use = true;
 	char buf[4096];
@@ -173,6 +173,12 @@ int CLog::DlgMsg (TMsgDlgType mt, TMsgDlgButtons btn, LPCSTR _Format, ...)
     in_use = false;
 
     return res;
+}
+
+void CLog::Close()
+{
+	SetLogCB(0);
+	UILogForm::Destroy();
 }
 
 

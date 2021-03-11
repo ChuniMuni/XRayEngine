@@ -223,8 +223,8 @@ bool CUI_Camera::Process(TShiftState Shift, int dx, int dy)
             break;
             case csFreeFly:
                 if ((m_Shift&ssLeft)||(m_Shift&ssRight)) Rotate (dx,dy);
-//                if (Shift|ssLeft)) Rotate (d.x,d.y);
-//                else if (Shift|ssRight)) Scale(d.y);
+//                if (Shift&ssLeft)) Rotate (d.x,d.y);
+//                else if (Shift&ssRight)) Scale(d.y);
             break;
             case cs3DArcBall:
             	ArcBall(m_Shift,dx,dy);
@@ -241,7 +241,7 @@ bool CUI_Camera::KeyDown(WORD Key, TShiftState Shift)
 {
     if (m_bMoving){
     	switch (Key){
-        case VK_CONTROL:  TShiftState(ssCtrl | m_Shift); break;
+        case VK_CONTROL:  m_Shift = ssCtrl | m_Shift; break;
         default: return false;
         }
 	    return true;
@@ -253,8 +253,8 @@ bool CUI_Camera::KeyUp(WORD Key, TShiftState Shift)
 {
     if (m_bMoving){
     	switch (Key){
-        case VK_SHIFT:  TShiftState(~ssShift & m_Shift); MoveEnd(m_Shift); break;
-        case VK_CONTROL: TShiftState(~ssCtrl & m_Shift); break;
+        case VK_SHIFT:  m_Shift = ~ssShift & m_Shift; MoveEnd(m_Shift); break;
+        case VK_CONTROL: m_Shift = ~ssCtrl & m_Shift; break;
         default: return false;
         }
 	    return true;
@@ -264,8 +264,8 @@ bool CUI_Camera::KeyUp(WORD Key, TShiftState Shift)
 
 void CUI_Camera::MouseRayFromPoint( Fvector& start, Fvector& direction, const Ivector2& point )
 {
-	int halfwidth  = UI->GetRealWidth()*0.5f;
-	int halfheight = UI->GetRealHeight()*0.5f;
+	int halfwidth  = UI->GetRenderWidth()*0.5f;
+	int halfheight = UI->GetRenderHeight()*0.5f;
 
     if (!halfwidth||!halfheight) return;
 
@@ -313,8 +313,8 @@ void CUI_Camera::ZoomExtents(const Fbox& bb)
 void CUI_Camera::ArcBall(TShiftState Shift, float dx, float dy)
 {
 	float dist = m_Position.distance_to(m_Target);
-	if (Shift|ssAlt){
-		if (Shift|ssLeft){
+	if (Shift&ssAlt){
+		if (Shift&ssLeft){
             Fvector vmove;
             vmove.set( m_CamMat.k );  vmove.y = 0;
             vmove.normalize_safe();
@@ -325,16 +325,16 @@ void CUI_Camera::ArcBall(TShiftState Shift, float dx, float dy)
             vmove.normalize_safe();
             vmove.mul( dx*m_SM );
             m_Target.add( vmove );
-        }else if(Shift|ssRight){
+        }else if(Shift&ssRight){
             Fvector vmove;
             vmove.set( 0.f, dy, 0.f );
             vmove.y *= -m_SM;
             m_Target.add( vmove );
         }
     }else{
-    	if (Shift|ssRight){
+    	if (Shift&ssRight){
         	dist -= dx*m_SM;
-	    }else if (Shift|ssLeft){
+	    }else if (Shift&ssLeft){
     	    m_HPB.x-=m_SR*dx;
         	m_HPB.y-=m_SR*dy*EDevice.fASPECT;
 	    }

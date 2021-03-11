@@ -114,9 +114,11 @@ class CActorTools: public CToolCustom
 {
 	typedef CToolCustom inherited;
 
+    bool m_ChooseSkeletonBones;
+
     Fmatrix				m_AVTransform;
 	CEditableObject*	m_pEditObject;
-
+    u32                 m_pEditObjectType;
     bool				m_bObjectModified;
     shared_str			m_tmp_mot_refs;
     EEditMode			m_EditMode;
@@ -140,7 +142,7 @@ class CActorTools: public CToolCustom
 	void   	OnMarksControlClick12		(ButtonValue* sender, bool& bModif, bool& bSafe);
 	void   	OnMarksControlClick34		(ButtonValue* sender, bool& bModif, bool& bSafe);
 
-    void   	OnObjectItemFocused		(ListItem* items);
+    void   	OnObjectItemsFocused		(xr_vector<ListItem*>& items);
 
     void  		OnBoneShapeClick  		(ButtonValue* sender, bool& bModif, bool& bSafe);
     void  		OnBoneCreateDeleteClick (ButtonValue* sender, bool& bModif, bool& bSafe);
@@ -155,6 +157,12 @@ class CActorTools: public CToolCustom
     
 	void   	OnBindTransformChange	(PropValue* V);
 
+    void  OnTypeChange(PropValue* V);
+
+    void  OnUsingLodFlagChange(PropValue* V);
+
+    void OnMakeThumbnailClick(ButtonValue* sender, bool& bModif, bool& bSafe);
+    void OnMakeLODClick(ButtonValue* sender, bool& bModif, bool& bSafe);
     SMotionVec 			appended_motions;
 protected:
 	// flags
@@ -166,12 +174,16 @@ protected:
     	flUpdateMotionKeys 	= (1<<4),
     	flUpdateMotionDefs	= (1<<5),
         flReadOnlyMode 		= (1<<6),
+        flMakeThumbnail     = (1<<7),
+        flGenerateLODLQ = (1 << 8),
+        flGenerateLODHQ = (1 << 9),
     };
     Flags32				m_Flags;
     
     void				RefreshSubProperties	(){m_Flags.set(flRefreshSubProps,TRUE);}
     void				RefreshShaders			(){m_Flags.set(flRefreshShaders,TRUE);}
-
+    void				MakeThumbnail           (){ m_Flags.set(flMakeThumbnail, TRUE); }
+    void				GenerateLOD(bool hq) { m_Flags.set(hq? flGenerateLODHQ: flGenerateLODLQ, TRUE); }
   //  void   	PMMotionItemClick		(TObject *Sender);
     
     void				RealUpdateProperties	();
@@ -264,6 +276,8 @@ public:
     void				MakePreview			();
 
 	bool   	OnBoneNameAfterEdit	(PropValue* sender, shared_str& edit_val);
+    void   	OnBoneNameChangeEvent(PropValue* sender);
+
     void  		OnBoneModified		(void);
     void  		OnObjectModified	(void);
     void  		OnMotionDefsModified(void); 
@@ -290,7 +304,8 @@ public:
 	void 				RemoveMarksChannel	(bool b12);
 	void 				AddMarksChannel		(bool b12);
     void				OptimizeMotions		();
-    void				MakeThumbnail		();
+    void				RealMakeThumbnail();
+    void				RealGenerateLOD(bool hq);
     bool				BatchConvert		(LPCSTR fn);
 
 
@@ -320,6 +335,11 @@ public:
 	CCommandVar 		CommandOptimizeMotions(CCommandVar p1, CCommandVar p2);
     CCommandVar 		CommandMakeThumbnail(CCommandVar p1, CCommandVar p2);
     CCommandVar			CommandBatchConvert	(CCommandVar p1, CCommandVar p2);
+public:
+    void OnDrawUI();
+    inline bool IsPhysics()const { return m_IsPhysics; }
+ private:
+        bool m_IsPhysics;
 };
 
 extern CActorTools*	ATools;

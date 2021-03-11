@@ -125,7 +125,7 @@ protected:
 	u32							UCalc_Time				;
 	s32							UCalc_Visibox			;
 
-    Flags64						visimask;
+	BonesVisible					bonesvisible;
     
 	CSkeletonX*					LL_GetChild				(u32 idx);
 
@@ -191,7 +191,21 @@ public:
         return bd;
 	}
 	u16						_BCL	LL_BoneCount		()	const			{	return u16(bones->size());										}
-	u16								LL_VisibleBoneCount	()					{	u64 F=visimask.flags&((u64(1)<<u64(LL_BoneCount()))-1); return (u16)btwCount1(F); }
+	u16								LL_VisibleBoneCount	()					
+	{	
+		u32 Count = (LL_BoneCount() / 64)+1;
+		u64 CountBone = 0;
+		for (u32 i = 0; i < Count-1; i++)
+		{
+			CountBone += btwCount1(bonesvisible.visimask[i].flags);
+		}
+		{
+			u64 flags = bonesvisible.visimask[Count - 1].flags;
+			flags &= (u64(1) << (LL_BoneCount() % 64)) - 1;
+			CountBone += btwCount1(flags);
+		}
+		return (u16)CountBone;
+	}
 	ICF Fmatrix&			_BCL	LL_GetTransform		(u16 bone_id)		{	return LL_GetBoneInstance(bone_id).mTransform;					}
 	ICF const Fmatrix&		_BCL	LL_GetTransform		(u16 bone_id) const	{	return LL_GetBoneInstance(bone_id).mTransform;					}
 	ICF Fmatrix&					LL_GetTransform_R	(u16 bone_id)		{	return LL_GetBoneInstance(bone_id).mRenderTransform;			}	// rendering only
@@ -203,10 +217,10 @@ public:
 	u16						_BCL	LL_GetBoneRoot		()					{	return iRoot;													}
 	void							LL_SetBoneRoot		(u16 bone_id)		{	VERIFY(bone_id<LL_BoneCount());	iRoot=bone_id;					}
 
-    BOOL					_BCL	LL_GetBoneVisible	(u16 bone_id)		{	VERIFY(bone_id<LL_BoneCount()); return visimask.is(u64(1)<<bone_id);	}
+    BOOL					_BCL	LL_GetBoneVisible	(u16 bone_id)		{	VERIFY(bone_id<LL_BoneCount()); return bonesvisible.is(bone_id);	}
 	void							LL_SetBoneVisible	(u16 bone_id, BOOL val, BOOL bRecursive);
-	u64						_BCL	LL_GetBonesVisible	()					{	return visimask.get();	}
-	void							LL_SetBonesVisible	(u64 mask);
+	BonesVisible						_BCL	LL_GetBonesVisible	()					{	return bonesvisible;	}
+	void							LL_SetBonesVisible	(BonesVisible mask);
 
 	// Main functionality
 	virtual void					CalculateBones				(BOOL bForceExact	=	FALSE);		// Recalculate skeleton
@@ -253,7 +267,6 @@ public:
 	}
 private:
 	bool						m_is_original_lod;
-
 };
 IC CKinematics* PCKinematics		(dxRender_Visual* V)		{ return V?(CKinematics*)V->dcast_PKinematics():0; }
 //---------------------------------------------------------------------------

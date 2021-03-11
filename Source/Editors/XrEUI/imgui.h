@@ -411,7 +411,7 @@ namespace ImGui
     IMGUI_API float         GetTextLineHeightWithSpacing();                                 // ~ FontSize + style.ItemSpacing.y (distance in pixels between 2 consecutive lines of text)
     IMGUI_API float         GetFrameHeight();                                               // ~ FontSize + style.FramePadding.y * 2
     IMGUI_API float         GetFrameHeightWithSpacing();                                    // ~ FontSize + style.FramePadding.y * 2 + style.ItemSpacing.y (distance in pixels between 2 consecutive lines of framed widgets)
-
+    IMGUI_API ImVec2        CalcItemSize(ImVec2 size, float default_w, float default_h);
     // ID stack/scopes
     // - Read the FAQ for more details about how ID are handled in dear imgui. If you are creating widgets in a loop you most
     //   likely want to push a unique identifier (e.g. object pointer, loop index) to uniquely differentiate them.
@@ -442,6 +442,8 @@ namespace ImGui
     IMGUI_API void          LabelTextV(const char* label, const char* fmt, va_list args)    IM_FMTLIST(2);
     IMGUI_API void          BulletText(const char* fmt, ...)                                IM_FMTARGS(1); // shortcut for Bullet()+Text()
     IMGUI_API void          BulletTextV(const char* fmt, va_list args)                      IM_FMTLIST(1);
+    IMGUI_API void          ArrowText(const char* fmt, ImGuiDir dir, ...)                                IM_FMTARGS(1); // shortcut for Bullet()+Text()
+    IMGUI_API void          ArrowTextV(const char* fmt, ImGuiDir dir, va_list args)                      IM_FMTLIST(1);
 
     // Widgets: Main
     // - Most widgets return true when the value has been changed or when pressed/selected

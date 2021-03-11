@@ -25,15 +25,16 @@ namespace CPU
 
 static u32	init_counter	= 0;
 
-extern char g_application_path[256];
 
 //. extern xr_vector<shared_str>*	LogFile;
 
 void xrCore::_initialize	(LPCSTR _ApplicationName, LogCallback cb, BOOL init_fs, LPCSTR fs_fname, bool editor_fs )
 {
+	
 	xr_strcpy					(ApplicationName,_ApplicationName);
 
 	if (0==init_counter) {
+		Editor = editor_fs;
 		BearCore::Initialize();
 #ifdef XRCORE_STATIC	
 		_clear87	();
@@ -56,9 +57,6 @@ void xrCore::_initialize	(LPCSTR _ApplicationName, LogCallback cb, BOOL init_fs,
         GetModuleFileName(GetModuleHandle(MODULE_NAME),fn,sizeof(fn));
         _splitpath		(fn,dr,di,0,0);
         strconcat		(sizeof(ApplicationPath),ApplicationPath,dr,di);
-#if 1
-		xr_strcpy		(g_application_path,sizeof(g_application_path),ApplicationPath);
-#endif
 
 #if 0
 		// working path
@@ -173,11 +171,6 @@ void xrCore::_destroy		()
 	{
 	case DLL_PROCESS_ATTACH:
 		{
-			_clear87		();
-			_control87		( _PC_53,   MCW_PC );
-			_control87		( _RC_CHOP, MCW_RC );
-			_control87		( _RC_NEAR, MCW_RC );
-			_control87		( _MCW_EM,  MCW_EM );
 		}
 //.		LogFile.reserve		(256);
 		break;

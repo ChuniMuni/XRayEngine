@@ -141,6 +141,7 @@ void CCustomPreferences::FillProp(PropItemVec& props)
     PHelper().CreateU32		(props,"Scene\\Common\\Undo Level", 		    &scene_undo_level,	0, 		125);
     PHelper().CreateFloat	(props,"Scene\\Grid\\Cell Size", 	           	&grid_cell_size,	0.1f,	10.f);
     PHelper().CreateU32		(props,"Scene\\Grid\\Cell Count", 	           	&grid_cell_count,	10, 	1000);
+    PHelper().CreateFloat(props, "Scene\\RadiusRender", &EDevice.RadiusRender,10.f,100000.f);
 
     PHelper().CreateBOOL	(props,"Tools\\Box Pick\\Limited Depth",		&bp_lim_depth);
     PHelper().CreateBOOL	(props,"Tools\\Box Pick\\Back Face Culling",	&bp_cull);
@@ -197,10 +198,9 @@ void CCustomPreferences::Edit()
    // m_ItemProps->ShowPropertiesModal();
 
     // save changed options
-    Save							();
 }
 //---------------------------------------------------------------------------
-
+extern bool bAllowLogCommands;
 void CCustomPreferences::Load(CInifile* I)
 {
     psDeviceFlags.flags		= R_U32_SAFE	("editor_prefs","device_flags",	psDeviceFlags.flags);
@@ -241,6 +241,14 @@ void CCustomPreferences::Load(CInifile* I)
     scene_clear_color	= R_U32_SAFE	("editor_prefs","scene_clear_color"	,scene_clear_color	);
 
     object_flags.flags	= R_U32_SAFE	("editor_prefs","object_flags"		,object_flags.flags );
+    EDevice.RadiusRender = R_FLOAT_SAFE("render", "render_radius", EDevice.RadiusRender);
+
+
+    start_w = R_U32_SAFE("render", "w", 1280);
+    start_h = R_U32_SAFE("render", "h",800);
+    start_maximized = R_BOOL_SAFE("render", "maximized", false);
+
+    bAllowLogCommands = R_BOOL_SAFE("windows", "log", false);
 	// read recent list    
     for (u32 i=0; i<scene_recent_count; i++){
     	shared_str fn  	= R_STRING_SAFE	("editor_prefs",xr_string().sprintf("recent_files_%d",i).c_str(),shared_str("") );
@@ -253,6 +261,7 @@ void CCustomPreferences::Load(CInifile* I)
     }
     sWeather = R_STRING_SAFE	("editor_prefs", "weather", shared_str("") );
     // load shortcuts
+
     LoadShortcuts		(I);
 
     UI->LoadSettings	(I);
@@ -260,66 +269,76 @@ void CCustomPreferences::Load(CInifile* I)
 
 void CCustomPreferences::Save(CInifile* I)
 {
-    I->w_u32	("editor_prefs","device_flags",		psDeviceFlags.flags	);
-    I->w_u32	("editor_prefs","sound_flags",		psSoundFlags.flags	);
+    I->w_u32("editor_prefs", "device_flags", psDeviceFlags.flags);
+    I->w_u32("editor_prefs", "sound_flags", psSoundFlags.flags);
 
-    I->w_u32	("editor_prefs","tools_settings",	Tools->m_Settings.flags	);
+    I->w_u32("editor_prefs", "tools_settings", Tools->m_Settings.flags);
 
-    I->w_float	("editor_prefs","view_np",			view_np			);
-    I->w_float	("editor_prefs","view_fp",			view_fp			);
-    I->w_float	("editor_prefs","view_fov",			view_fov		);
+    I->w_float("editor_prefs", "view_np", view_np);
+    I->w_float("editor_prefs", "view_fp", view_fp);
+    I->w_float("editor_prefs", "view_fov", view_fov);
 
-    I->w_u32	("editor_prefs","fog_color",		fog_color		);
-    I->w_float	("editor_prefs","fog_fogness",		fog_fogness		);
+    I->w_u32("editor_prefs", "fog_color", fog_color);
+    I->w_float("editor_prefs", "fog_fogness", fog_fogness);
 
-    I->w_float	("editor_prefs","cam_fly_speed",	cam_fly_speed	);
-    I->w_float	("editor_prefs","cam_fly_alt",		cam_fly_alt		);
-    I->w_float	("editor_prefs","cam_sens_rot",		cam_sens_rot	);
-    I->w_float	("editor_prefs","cam_sens_move",	cam_sens_move	);
+    I->w_float("editor_prefs", "cam_fly_speed", cam_fly_speed);
+    I->w_float("editor_prefs", "cam_fly_alt", cam_fly_alt);
+    I->w_float("editor_prefs", "cam_sens_rot", cam_sens_rot);
+    I->w_float("editor_prefs", "cam_sens_move", cam_sens_move);
 
-    I->w_float	("editor_prefs","tools_sens_rot",	tools_sens_rot	);
-    I->w_float	("editor_prefs","tools_sens_move",	tools_sens_move	);
-    I->w_float	("editor_prefs","tools_sens_scale",	tools_sens_scale);
-	I->w_bool	("editor_prefs","tools_show_move_axis",tools_show_move_axis);
-    
-    I->w_bool	("editor_prefs","bp_lim_depth",		bp_lim_depth	);
-    I->w_bool	("editor_prefs","bp_lim_depth",		bp_cull			);
-    I->w_float	("editor_prefs","bp_depth_tolerance",bp_depth_tolerance	);
+    I->w_float("editor_prefs", "tools_sens_rot", tools_sens_rot);
+    I->w_float("editor_prefs", "tools_sens_move", tools_sens_move);
+    I->w_float("editor_prefs", "tools_sens_scale", tools_sens_scale);
+    I->w_bool("editor_prefs", "tools_show_move_axis", tools_show_move_axis);
 
-    I->w_float	("editor_prefs","snap_angle",		snap_angle		);
-    I->w_float	("editor_prefs","snap_move",		snap_move		);
-    I->w_float	("editor_prefs","snap_moveto",		snap_moveto		);
+    I->w_bool("editor_prefs", "bp_lim_depth", bp_lim_depth);
+    I->w_bool("editor_prefs", "bp_lim_depth", bp_cull);
+    I->w_float("editor_prefs", "bp_depth_tolerance", bp_depth_tolerance);
 
-    I->w_float	("editor_prefs","grid_cell_size",	grid_cell_size	);
-    I->w_u32	("editor_prefs","grid_cell_count",	grid_cell_count	);
+    I->w_float("editor_prefs", "snap_angle", snap_angle);
+    I->w_float("editor_prefs", "snap_move", snap_move);
+    I->w_float("editor_prefs", "snap_moveto", snap_moveto);
 
-    I->w_u32	("editor_prefs","scene_undo_level",		scene_undo_level	);
-    I->w_u32	("editor_prefs","scene_recent_count",	scene_recent_count	);
-    I->w_u32	("editor_prefs","scene_clear_color",	scene_clear_color 	);
+    I->w_float("editor_prefs", "grid_cell_size", grid_cell_size);
+    I->w_u32("editor_prefs", "grid_cell_count", grid_cell_count);
 
-    I->w_u32	("editor_prefs","object_flags",		object_flags.flags);
-   for (AStringIt it=scene_recent_list.begin(); it!=scene_recent_list.end(); it++){
-    	xr_string L; L.sprintf("recent_files_%d",it-scene_recent_list.begin());
-    	xr_string V; V.sprintf("\"%s\"",it->c_str());
-		I->w_string("editor_prefs",L.c_str(),V.c_str());
+    I->w_u32("editor_prefs", "scene_undo_level", scene_undo_level);
+    I->w_u32("editor_prefs", "scene_recent_count", scene_recent_count);
+    I->w_u32("editor_prefs", "scene_clear_color", scene_clear_color);
+
+    I->w_u32("editor_prefs", "object_flags", object_flags.flags);
+    for (AStringIt it = scene_recent_list.begin(); it != scene_recent_list.end(); it++) {
+        xr_string L; L.sprintf("recent_files_%d", it - scene_recent_list.begin());
+        xr_string V; V.sprintf("\"%s\"", it->c_str());
+        I->w_string("editor_prefs", L.c_str(), V.c_str());
     }
-    I->w_string("editor_prefs","weather",   sWeather.c_str() );
+    I->w_string("editor_prefs", "weather", sWeather.c_str());
+    I->w_bool("render", "maximized", EDevice.dwMaximized);
+    I->w_u32("render", "w", EDevice.dwWidth);
+    I->w_u32("render", "h", EDevice.dwHeight);
+    I->w_bool("windows", "log", bAllowLogCommands);
+    I->w_float("render", "render_radius", EDevice.RadiusRender);
+
     // load shortcuts
-    SaveShortcuts		(I);
-    UI->SaveSettings	(I);
+    SaveShortcuts(I);
+    UI->SaveSettings(I);
 }
 
 void CCustomPreferences::Draw()
 {
-    if (!ImGui::Begin("Editor Preferences",&bOpen,ImGuiWindowFlags_NoResize| ImGuiWindowFlags_AlwaysAutoResize))
+    if (!bOpen)return;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(300, 400));
+    if (!ImGui::Begin("Editor Preferences",&bOpen))
     {
+        OnClose();
+        Save();
+        ImGui::PopStyleVar();
         ImGui::End();
         return;
     }
+    ImGui::PopStyleVar();
     {
-        ImGui::BeginChild("Edit", ImVec2(450, 250));
         m_ItemProps->Draw();
-        ImGui::EndChild();
     }
     ImGui::End();
 }
@@ -369,6 +388,7 @@ void CCustomPreferences::OnCreate()
 
 void CCustomPreferences::OnDestroy()
 {
+  
     xr_delete(m_ItemProps);
     Save				();
 }

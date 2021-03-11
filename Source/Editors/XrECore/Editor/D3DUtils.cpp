@@ -230,6 +230,11 @@ void CDrawUtilities::OnDeviceCreate()
     m_axis_object = NULL;
 }
 
+void CDrawUtilities::DestroyObjects()
+{
+    Lib.RemoveEditObject(m_axis_object);
+}
+
 void CDrawUtilities::OnDeviceDestroy()
 {
 	EDevice.seqRender.Remove		(this);
@@ -248,7 +253,6 @@ void CDrawUtilities::OnDeviceDestroy()
 	vs_L.destroy		();
 	vs_TL.destroy		();
 	vs_LIT.destroy		();
- 	Lib.RemoveEditObject(m_axis_object);
 }
 //----------------
 
@@ -1075,7 +1079,7 @@ void CDrawUtilities::DrawAxis(const Fmatrix& T)
     static float _kl		= 1.0f;
 
 	pt.x  = _wh;
-	pt.y  = iFloor(UI->GetRealHeight()-_wh);
+	pt.y  = iFloor(UI->GetRenderHeight()-_wh);
 
     EDevice.m_Camera.MouseRayFromPoint(M.c, dir, pt);
     M.c.mad(dir, _kl);

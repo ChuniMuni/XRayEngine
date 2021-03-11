@@ -21,30 +21,7 @@ u16			getFPUsw()		{ return 0;	}
 
 namespace	FPU 
 {
-	XRCORE_API void 	m24		(void)	{
-		_control87	( _PC_24,   MCW_PC );
-		_control87	( _RC_CHOP, MCW_RC );
-	}
-	XRCORE_API void 	m24r	(void)	{
-		_control87	( _PC_24,   MCW_PC );
-		_control87	( _RC_NEAR, MCW_RC );
-	}
-	XRCORE_API void 	m53		(void)	{
-		_control87	( _PC_53,   MCW_PC );
-		_control87	( _RC_CHOP, MCW_RC );
-	}
-	XRCORE_API void 	m53r	(void)	{
-		_control87	( _PC_53,   MCW_PC );
-		_control87	( _RC_NEAR, MCW_RC );
-	}
-	XRCORE_API void 	m64		(void)	{
-		_control87	( _PC_64,   MCW_PC );
-		_control87	( _RC_CHOP, MCW_RC );
-	}
-	XRCORE_API void 	m64r	(void)	{
-		_control87	( _PC_64,   MCW_PC );
-		_control87	( _RC_NEAR, MCW_RC );
-	}
+
 
 	void		initialize		()				{}
 };
@@ -65,58 +42,10 @@ namespace FPU
 	u16			_64	=0;
 	u16			_64r=0;
 
-	XRCORE_API void 	m24		()	{
-		u16		p	= _24;
-		__asm fldcw p;	
-	}
-	XRCORE_API void 	m24r	()	{
-		u16		p	= _24r;
-		__asm fldcw p;  
-	}
-	XRCORE_API void 	m53		()	{
-		u16		p	= _53;
-		__asm fldcw p;	
-	}
-	XRCORE_API void 	m53r	()	{
-		u16		p	= _53r;
-		__asm fldcw p;	
-	}
-	XRCORE_API void 	m64		()	{ 
-		u16		p	= _64;
-		__asm fldcw p;	
-	}
-	XRCORE_API void 	m64r	()	{
-		u16		p	= _64r;
-		__asm fldcw p;  
-	}
+	
 
 	void		initialize		()
 	{
-		_clear87	();
-
-		_control87	( _PC_24,   MCW_PC );
-		_control87	( _RC_CHOP, MCW_RC );
-		_24			= getFPUsw();	// 24, chop
-		_control87	( _RC_NEAR, MCW_RC );
-		_24r		= getFPUsw();	// 24, rounding
-
-		_control87	( _PC_53,   MCW_PC );
-		_control87	( _RC_CHOP, MCW_RC );
-		_53			= getFPUsw();	// 53, chop
-		_control87	( _RC_NEAR, MCW_RC );
-		_53r		= getFPUsw();	// 53, rounding
-
-		_control87	( _PC_64,   MCW_PC );
-		_control87	( _RC_CHOP, MCW_RC );
-		_64			= getFPUsw();	// 64, chop
-		_control87	( _RC_NEAR, MCW_RC );
-		_64r		= getFPUsw();	// 64, rounding
-
-#ifndef XRCORE_STATIC
-
-		m24r		();
-
-#endif	//XRCORE_STATIC
 
 		::Random.seed	( u32(CPU::GetCLK()%(1i64<<32i64)) );
 	}
@@ -206,8 +135,6 @@ namespace CPU
 		clk_per_milisec	=	clk_per_second/1000;
 		clk_per_microsec	=	clk_per_milisec/1000;
 
-		_control87	( _PC_64,   MCW_PC );
-//		_control87	( _RC_CHOP, MCW_RC );
 		double a,b;
 		a = 1;		b = double(clk_per_second);
 		clk_to_seconds = float(double(a/b));
@@ -320,7 +247,7 @@ void	thread_name	(const char* name)
 	tn.dwFlags		= 0;
 	__try
 	{
-		RaiseException(0x406D1388,0,sizeof(tn)/sizeof(DWORD),(DWORD*)&tn);
+		RaiseException(0x406D1388,0,sizeof(tn)/sizeof(DWORD),(ULONG_PTR*)&tn);
 	}
 	__except(EXCEPTION_CONTINUE_EXECUTION)
 	{

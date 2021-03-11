@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #pragma hdrstop
 
+#include "..\BearBundle\BearGraphics\BearGraphics.hpp"
+
 #include "ImageManager.h"
 #include "xrImage_Resampler.h"
 #include "..\Engine\Image.h"
@@ -40,7 +42,7 @@ bool Stbi_Load(LPCSTR full_name, U32Vec& data, u32& w, u32& h, u32& a)
         h 					= img.dwHeight;
         a					= img.bAlpha;
         data.resize			(w*h);
-		for(int y=0;y<h;y++) CopyMemory			(data.data()+y*w,img.pData+((h-y-1) * w),sizeof(u32)*w);
+		for(int y=0;y<h;y++) CopyMemory			(data.data()+y*w,img.pData+(y * w),sizeof(u32)*w);
 		if (!IsValidSize(w,h))	ELog.Msg(mtError,"Texture (%s) - invalid size: [%d, %d]",full_name,w,h);
         return true;
     }else{
@@ -57,6 +59,26 @@ bool Stbi_Load(LPCSTR full_name, U32Vec& data, u32& w, u32& h, u32& a)
             stbi_image_free(raw_data);
 			if (!IsValidSize(w,h))	ELog.Msg(mtError,"Texture (%s) - invalid size: [%d, %d]",full_name,w,h);
             return true;
+        }
+        else
+        {
+            BearImage img;
+            if (img.LoadFromFile(full_name))
+            {
+                img.ClearMipLevels();
+                img.Convert(BearTexturePixelFormat::R8G8B8A8);
+                img.SwapRB();
+                w = img.GetSize().x;
+                h = img.GetSize().y;
+                data.resize(w * h);
+                a = true;
+                CopyMemory(data.data(), *img, w * h*4);
+               /* for (bsize i = 0; i < h/2; i++)
+                {
+                    bear_swap(data.data()+(i*w), data.data() + ((h - (i+1)) * w), w);
+                }*/
+                return true;
+            }
         }
 
     }
@@ -117,8 +139,11 @@ void CImageManager::CreateTextureThumbnail(ETextureThumbnail* THM, const xr_stri
     xr_string fn 	= EFS.ChangeFileExt(base_name,".tga");
     if (!Stbi_Load(fn.c_str(),data,w,h,a))
     {
-    	ELog.Msg(mtError,"Can't load texture '%s'.\nCheck file existence",fn.c_str());
-     	return;
+        if (!Stbi_Load(base_name, data, w, h, a))
+        {
+            ELog.Msg(mtError, "Can't load texture '%s'.\nCheck file existence", fn.c_str());
+            return;
+        }
     }
     MakeThumbnailImage(THM,data.data(),w,h,a);
 
@@ -454,7 +479,7 @@ int CImageManager::GetTexturesRaw(FS_FileSet& files, BOOL bFolders)
 //------------------------------------------------------------------------------
 int CImageManager::GetLocalNewTextures(FS_FileSet& files)
 {
-    return FS.file_list(files,_import_,FS_ListFiles|FS_RootOnly,"*.tga,*.bmp");
+    return FS.file_list(files,_import_,FS_ListFiles|FS_RootOnly,"*.tga,*.bmp,*.dds,*.png,*.jpg");
 }
 //------------------------------------------------------------------------------
 // проверяет соответствие размера текстур
@@ -626,12 +651,11 @@ BOOL CImageManager::CreateOBJThumbnail(LPCSTR tex_name, CEditableObject* obj, in
     return bResult;
 }
 
-void CImageManager::RemoveTexture(LPCSTR fname, EItemType type, bool& res)
+void CImageManager::RemoveTexture(LPCSTR fname, EItemType type)
 {
 	if (TYPE_FOLDER==type){
     	FS.dir_delete			(_textures_,fname,FALSE);
     	FS.dir_delete			(_game_textures_,fname,FALSE);
-        res 					= true;
         return;
     }else if (TYPE_OBJECT==type)
     {
@@ -654,7 +678,6 @@ void CImageManager::RemoveTexture(LPCSTR fname, EItemType type, bool& res)
             return;
         }
     }
-    res 						= false;
 }
 
 EImageThumbnail* CImageManager::CreateThumbnail(LPCSTR src_name, ECustomThumbnail::THMType type, bool bLoad)

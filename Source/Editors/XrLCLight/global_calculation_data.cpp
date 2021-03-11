@@ -61,8 +61,19 @@ void global_claculation_data::xrLoad()
 		R_ASSERT			(CFORM_CURRENT_VERSION==H.version);
 		
 		Fvector*	verts	= (Fvector*)fs->pointer();
-		CDB::TRI*	tris	= (CDB::TRI*)(verts+H.vertcount);
-		RCAST_Model.build	( verts, H.vertcount, tris, H.facecount );
+
+
+		xr_vector< CDB::TRI> tris(H.facecount);
+		{
+			u8* tris_pointer = (u8*)(verts + H.vertcount);
+			for (u32 i = 0; i < H.facecount; i++)
+			{
+				memcpy(&tris[i], tris_pointer, CDB::TRI::Size());
+				tris_pointer += CDB::TRI::Size();
+			}
+
+		}
+		RCAST_Model.build	( verts, H.vertcount, tris.data(), H.facecount );
 		Msg("* Level CFORM: %dK",RCAST_Model.memory()/1024);
 
 		g_rc_faces.resize	(H.facecount);
@@ -124,17 +135,17 @@ void global_claculation_data::xrLoad()
 		post_process_materials( *g_shaders_xrlc, g_shader_compile, g_materials );
 		// process textures
 #ifdef	DEBUG
-		xr_vector<b_texture> dbg_textures;
+		xr_vector<b_texture_real> dbg_textures;
 #endif
 		Status			("Processing textures...");
 		{
 			F = fs->open_chunk	(EB_Textures);
-			u32 tex_count	= F->length()/sizeof(b_texture);
+			u32 tex_count	= F->length()/sizeof(b_texture_real);
 			for (u32 t=0; t<tex_count; t++)
 			{
 				Progress		(float(t)/float(tex_count));
 
-				b_texture		TEX;
+				b_texture_real		TEX;
 				F->r			(&TEX,sizeof(TEX));
 #ifdef	DEBUG
 				dbg_textures.push_back( TEX );
@@ -156,9 +167,11 @@ void global_claculation_data::xrLoad()
 					BT.pSurface.Clear();
 					BT.THM.SetHasSurface(FALSE);
 				} else {
-					xr_strcat				(N,sizeof(BT.name),".thm");
-					IReader* THM			= FS.r_open("$game_textures$",N);
-					R_ASSERT2				(THM,	N);
+					string_path			th_name;
+					FS.update_path(th_name, "$game_textures$", strconcat(sizeof(th_name), th_name, N, ".thm"));
+					clMsg("processing: %s", th_name);
+					IReader* THM = FS.r_open(th_name);
+					R_ASSERT2(THM, th_name);
 
 					// version
 					u32 version				= 0;
@@ -191,9 +204,10 @@ void global_claculation_data::xrLoad()
 							clMsg		("- loading: %s",N);
 							string_path name;
 							R_ASSERT2(Surface_Detect(name, N), "Can't load surface");
-							R_ASSERT2(BT.pSurface.LoadDDSFromFile(name), "Can't load surface");
+							R_ASSERT2(BT.pSurface.LoadFromFile(name), "Can't load surface");
 							BT.pSurface.ClearMipLevels();
-							BT.pSurface.Convert(TPF_R8G8B8A8);
+							BT.pSurface.Convert(BearTexturePixelFormat::R8G8B8A8);
+							BT.pSurface.SwapRB();
 							BT.THM.SetHasSurface(TRUE);
 							if ((BT.pSurface.GetSize().x != BT.dwWidth) || (BT.pSurface.GetSize().y != BT.dwHeight))
 								Msg		("! THM doesn't correspond to the texture: %dx%d -> %dx%d", BT.dwWidth, BT.dwHeight, BT.pSurface.GetSize().x, BT.pSurface.GetSize().y);

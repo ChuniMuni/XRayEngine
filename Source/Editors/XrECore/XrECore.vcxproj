@@ -155,6 +155,7 @@
     <ClCompile Include="Editor\ExportSkeleton.cpp" />
     <ClCompile Include="Editor\ExportSkeletonCalculateTB.cpp" />
     <ClCompile Include="Editor\GeometryCollector.cpp" />
+    <ClCompile Include="Editor\UIEditLightAnim.cpp" />
     <ClCompile Include="Editor\UIImageEditorForm.cpp" />
     <ClCompile Include="Editor\ImageManager.cpp" />
     <ClCompile Include="Editor\ImageManagerDO.cpp" />
@@ -179,7 +180,6 @@
     <ClCompile Include="Engine\ai_sounds.cpp" />
     <ClCompile Include="Engine\bone.cpp" />
     <ClCompile Include="Engine\cl_collector.cpp" />
-    <ClCompile Include="Engine\GameMtlLib.cpp" />
     <ClCompile Include="Engine\guid_generator.cpp" />
     <ClCompile Include="Engine\Image.cpp" />
     <ClCompile Include="Engine\NVMeshMender.cpp" />
@@ -271,6 +271,7 @@
     <ClInclude Include="Editor\ExportObjectOGF.h" />
     <ClInclude Include="Editor\ExportSkeleton.h" />
     <ClInclude Include="Editor\GeometryCollector.h" />
+    <ClInclude Include="Editor\UIEditLightAnim.h" />
     <ClInclude Include="Editor\UIImageEditorForm.h" />
     <ClInclude Include="Editor\ImageManager.h" />
     <ClInclude Include="Editor\itterate_adjacents.h" />
@@ -298,7 +299,6 @@
     <ClInclude Include="Engine\ai_sounds.h" />
     <ClInclude Include="Engine\cl_collector.h" />
     <ClInclude Include="Engine\cl_intersect.h" />
-    <ClInclude Include="Engine\GameMtlLib.h" />
     <ClInclude Include="Engine\guid_generator.h" />
     <ClInclude Include="Engine\Image.h" />
     <ClInclude Include="Engine\NVMeshMender.h" />
@@ -351,6 +351,12 @@
     <None Include="WildMagic\WmlVector4.inl" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\BearBundle\BearCore\Platform\Desktop\BearCore.vcxproj">
+      <Project>{86b65138-c85e-4c26-967b-9a21eb954216}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\BearBundle\BearGraphics\Platform\Desktop\BearGraphics.vcxproj">
+      <Project>{3b75536d-008d-4495-9fe8-c7ae79ac6898}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\External\Ogg\Ogg.vcxproj">
       <Project>{490c4173-e321-4e03-8e09-0475d7b91307}</Project>
     </ProjectReference>
@@ -487,6 +493,7 @@
       <PreprocessorDefinitions>_EDITOR;WIN32;_DEBUG;XRECORE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>.;..\..\XrEngine\;..\..\XrRender\Private;..\..\XrRender\Public;..\FreeMagic;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -501,6 +508,7 @@
       <PreprocessorDefinitions>_EDITOR;_DEBUG;XRECORE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>.;..\..\XrEngine\;..\..\XrRender\Private;..\..\XrRender\Public;..\FreeMagic;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -517,6 +525,7 @@
       <PreprocessorDefinitions>_EDITOR;WIN32;NDEBUG;XRECORE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>.;..\..\XrEngine\;..\..\XrRender\Private;..\..\XrRender\Public;..\FreeMagic;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -535,6 +544,7 @@
       <PreprocessorDefinitions>_EDITOR;DEBUG;XRECORE_EXPORTS;_WINDOWS;_USRDLL;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>.;..\..\XrEngine\;..\..\XrRender\Private;..\..\XrRender\Public;..\FreeMagic;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -553,6 +563,7 @@
       <PreprocessorDefinitions>_EDITOR;NDEBUG;XRECORE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>.;..\..\XrEngine\;..\..\XrRender\Private;..\..\XrRender\Public;..\FreeMagic;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -571,6 +582,7 @@
       <PreprocessorDefinitions>_EDITOR;DEBUG;XRECORE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>.;..\..\XrEngine\;..\..\XrRender\Private;..\..\XrRender\Public;..\FreeMagic;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

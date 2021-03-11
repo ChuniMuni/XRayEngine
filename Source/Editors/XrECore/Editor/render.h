@@ -116,7 +116,15 @@ public:
 
 	void 					apply_lmaterial			(){}
     
-    virtual LPCSTR			getShaderPath			(){return "R1\\";}
+	virtual LPCSTR			getShaderPath()
+	{
+#ifndef _EDITOR
+		return "R1\\";
+#else
+		return "editor\\";
+#endif
+	}
+
 
 	virtual HRESULT			CompileShader			(
 		LPCSTR          	pSrcData,
@@ -130,7 +138,10 @@ public:
 		void*				ppErrorMsgs,
 		void*				ppConstantTable);
 
-	virtual IDirect3DBaseTexture9*	texture_load			(LPCSTR	fname, u32& mem_size);
+	virtual IDirect3DBaseTexture9*	texture_load(LPCSTR	fname, u32& mem_size);
+#ifdef _EDITOR
+	virtual IDirect3DBaseTexture9* texture_load_software(LPCSTR	fname, u32& mem_size);
+#endif
 	virtual HRESULT					shader_compile			(
 		LPCSTR							name,
 		LPCSTR                          pSrcData,

@@ -38,8 +38,11 @@ typedef EStateList::iterator EStateIt;
 
 class ECORE_API TUI: public IInputReceiver,public XrUIManager
 {
+    bool m_AppClosed;
+    inline void	RealQuit() { m_AppClosed = true; }
 protected:
-    Ivector2 m_Size;
+    Ivector2    m_Size;
+    bool        m_Size_Maximize;
 protected:
     friend class CCustomPreferences;
     friend class CEditorRenderDevice;
@@ -64,6 +67,7 @@ protected:
         flUpdateScene	= (1<<1),
         flResize		= (1<<2),
         flNeedQuit		= (1<<3),
+        flResetUI       = (1<<4),
     };
 	Flags32 m_Flags;
 protected:
@@ -109,7 +113,6 @@ public:
     // mouse sensetive
     float m_MouseSM, m_MouseSS, m_MouseSR;
 protected:
-    virtual void	RealQuit		()=0;
     virtual void 	RealUpdateScene	()=0;
     void			RealRedrawScene	();
     void			RealResize		();
@@ -132,11 +135,11 @@ public:
     virtual void 	OnDestroy		();
 
     virtual char* 	GetCaption		()=0;
-
+ 
     bool 			IsModified		();
 
-    void  Idle			();
-    void 			Resize(int x, int y, bool bForced = false) { m_Size.set(x, y);   m_Flags.set(flResize | flRedraw, TRUE); if (bForced) RealResize(); }
+    bool  Idle			();
+    void 			Resize(int x, int y, bool maximize = false, bool bForced = false) { m_Size.set(x, y); m_Size_Maximize = maximize;   m_Flags.set(flResize | flRedraw, TRUE); if (bForced) RealResize(); }
     void 			Resize(bool bForced = false) { m_Flags.set(flResize | flRedraw, TRUE); if (bForced) RealResize(); }
 
     // add, remove, changing objects/scene
@@ -175,7 +178,7 @@ public:
     bool 			ContainEState		(EEditorState st){ return std::find(m_EditorState.begin(),m_EditorState.end(),st)!=m_EditorState.end(); }
 
     virtual void 	OutCameraPos		()=0;
-    virtual void 	SetStatus			(LPSTR s, bool bOutLog=true)=0;
+    virtual void 	SetStatus			(LPCSTR s, bool bOutLog=true)=0;
     virtual void 	ResetStatus			()=0;
     
 	// direct input
@@ -197,10 +200,12 @@ public:
     void			OnDeviceDestroy		();
 
     // mailslot
+#if 0
 	bool 			CreateMailslot		();
 	void 			CheckMailslot		();
 	void 			OnReceiveMail		(LPCSTR msg);
 	void 			SendMail			(LPCSTR name, LPCSTR dest, LPCSTR msg);
+#endif
 
     void			CheckWindowPos		(HWND* form);
 
@@ -224,14 +229,19 @@ protected:
 public:
 	SPBItem*		ProgressStart		(float max_val, LPCSTR text);
 	void 			ProgressEnd			(SPBItem*&);
-    virtual void	ProgressDraw		()=0;
+    virtual void	ProgressDraw();
     SPBItem*		ProgressLast		(){return m_ProgressItems.empty()?0:m_ProgressItems.back();}
 public:
     ref_rt				RT;
     ref_rt				ZB;
     _vector2<u32>            RTSize;
-    protected:
-        virtual void RenderSpecial();
+protected:
+    virtual void OnDrawUI();
+    void RealResetUI();
+    HANDLE m_HConsole;
+public:
+   IC  void ResetUI(bool bForced=false)  { if (!bForced)m_Flags.set(flResetUI, TRUE); if (bForced) RealResetUI(); }
+   virtual Ivector2 GetRenderMousePosition()const { return Ivector2().set(0, 0); }
 };
 //---------------------------------------------------------------------------
 extern ECORE_API TUI* UI;  

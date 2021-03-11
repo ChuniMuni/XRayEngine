@@ -59,7 +59,8 @@ void CEditableMesh::Clear()
     UnloadFNormals		();
     UnloadVNormals		();
     UnloadSVertices		();
-
+	if (m_SmoothGroups)xr_free(m_SmoothGroups);
+	m_SmoothGroups = 0;
 	VERIFY				(m_FNormalsRefs==0 && m_VNormalsRefs==0 && m_AdjsRefs==0 && m_SVertRefs==0);
 
     xr_free				(m_Vertices);
@@ -417,11 +418,12 @@ void CEditableMesh::GetFacePT(u32 fid, const Fvector* pt[3])
 
 int CEditableMesh::GetFaceCount(bool bMatch2Sided, bool bIgnoreOCC)
 {
+	static shared_str occ_name = "materials\\occ";
 	int f_cnt = 0;
     for (SurfFacesPairIt sp_it=m_SurfFaces.begin(); sp_it!=m_SurfFaces.end(); sp_it++)
     {
     	CSurface* S = sp_it->first;
-        if(S->m_GameMtlName=="materials\\occ" && bIgnoreOCC)
+        if(S->m_GameMtlName== occ_name && bIgnoreOCC)
         	continue;
             
     	if (bMatch2Sided){

@@ -5,7 +5,7 @@
 #include "SkeletonAnimated.h"
 //------------------------------------------------------------------------------
 
-void  CActorTools::OnObjectItemFocused(ListItem* prop)
+void  CActorTools::OnObjectItemsFocused(xr_vector<ListItem*>& items)
 {
     PropItemVec props;
     m_EditMode = emObject;
@@ -16,35 +16,38 @@ void  CActorTools::OnObjectItemFocused(ListItem* prop)
         //.	    StopMotion					();     // ����� ��-�� ���� ��� �� �������� �������� � ������ ������
         m_pEditObject->SelectBones(false);
     }
-
-    if (prop)
+    for (ListItem* prop : items)
     {
-        m_EditMode = EEditMode(prop->Type());
-        switch (m_EditMode)
+
+        if (prop)
         {
-        case emObject:
-            FillObjectProperties(props, OBJECT_PREFIX, prop);
+            m_EditMode = EEditMode(prop->Type());
+            switch (m_EditMode)
+            {
+            case emObject:
+                FillObjectProperties(props, OBJECT_PREFIX, prop);
+                break;
+            case emMotion:
+            {
+                LPCSTR m_name = ExtractMotionName(prop->Key());
+                u16 slot = ExtractMotionSlot(prop->Key());
+                FillMotionProperties(props, MOTIONS_PREFIX, prop);
+                SetCurrentMotion(m_name, slot);
+            }
             break;
-        case emMotion:
-        {
-            LPCSTR m_name = ExtractMotionName(prop->Key());
-            u16 slot = ExtractMotionSlot(prop->Key());
-            FillMotionProperties(props, MOTIONS_PREFIX, prop);
-            SetCurrentMotion(m_name, slot);
-        }
-        break;
-        case emBone:
-        {
-            FillBoneProperties(props, BONES_PREFIX, prop);
-            CBone* BONE = (CBone*)prop->m_Object;
-            if (BONE) 			BONE->Select(TRUE);
-        }
-        break;
-        case emSurface:
-            FillSurfaceProperties(props, SURFACES_PREFIX, prop);
+            case emBone:
+            {
+                FillBoneProperties(props, BONES_PREFIX, prop);
+                CBone* BONE = (CBone*)prop->m_Object;
+                if (BONE) 			BONE->Select(TRUE);
+            }
             break;
-        case emMesh:
-            break;
+            case emSurface:
+                FillSurfaceProperties(props, SURFACES_PREFIX, prop);
+                break;
+            case emMesh:
+                break;
+            }
         }
     }
 
@@ -128,15 +131,13 @@ void CActorTools::OnMotionEditClick(ButtonValue* V, bool& bModif, bool& bSafe)
     }break;
     case 1:{ // delete
     	ListItemsVec items;
-     /*   if (m_ObjectItems->GetSelected(MOTIONS_PREFIX,items,true)){
-            if (ELog.DlgMsg(mtConfirmation, TMsgDlgButtons() << mbYes << mbNo, "Delete selected %d item(s)?",items.size()) == mrYes){
+     if (m_ObjectItems->GetSelected(MOTIONS_PREFIX,items,true)){
+            if (ELog.DlgMsg(mtConfirmation,  mbYes |mbNo, "Delete selected %d item(s)?",items.size()) == mrYes){
             	for (ListItemsIt it=items.begin(); it!=items.end(); it++){
                 	VERIFY((*it)->m_Object);
 	                RemoveMotion(((CSMotion*)(*it)->m_Object)->Name()); 
                 }
-		    	m_ObjectItems->LockUpdating();
 				SelectListItem(MOTIONS_PREFIX,0,true,false,false);
-		    	m_ObjectItems->UnlockUpdating();
                 ExecCommand(COMMAND_UPDATE_PROPERTIES);
 				OnMotionKeysModified();
                 bModif = false;
@@ -145,11 +146,10 @@ void CActorTools::OnMotionEditClick(ButtonValue* V, bool& bModif, bool& bSafe)
             }
    
         }else
-        	ELog.DlgMsg(mtInformation,"Select at least one motion.");*/
-        not_implemented();
+        	ELog.DlgMsg(mtInformation,"Select at least one motion.");
     }break;
     case 2:{ // save
-     /*   int mr=ELog.DlgMsg(mtConfirmation, "Save selected motions only?");
+     int mr=ELog.DlgMsg(mtConfirmation, "Save selected motions only?");
         if (mr!=mrCancel){
             if (EFS.GetSaveName(_smotion_,fn,0,1)){
                 switch (mr){
@@ -158,7 +158,7 @@ void CActorTools::OnMotionEditClick(ButtonValue* V, bool& bModif, bool& bSafe)
                 }
             }
         }
-        bModif = false;*/     not_implemented();
+        bModif = false;
     }break;
 	}
 }
@@ -182,7 +182,7 @@ void CActorTools::RealUpdateProperties()
         }
     }
 
-    m_ObjectItems->AssignItems(items);//,"",true);
+    m_ObjectItems->AssignItems(items,nullptr,true,true);//,"",true);
     // if appended motions exist - select it
     if (!appended_motions.empty()) {
         SelectListItem(MOTIONS_PREFIX, 0, true, false, true);
@@ -203,6 +203,7 @@ void CActorTools::OnMotionTypeChange(PropValue* sender)
 void CActorTools::OnMotionNameChange(PropValue* V)
 {
     OnMotionKeysModified();
+    UpdateProperties();
 }
 //------------------------------------------------------------------------------
 
@@ -445,12 +446,64 @@ void  CActorTools::OnBindTransformChange(PropValue* V)
 	UI->RedrawScene();
 }
 
+void CActorTools::OnTypeChange(PropValue* V)
+{
+    u32 current_type = m_pEditObject->m_objectFlags.flags & (CEditableObject::eoDynamic | CEditableObject::eoHOM | CEditableObject::eoSoundOccluder | CEditableObject::eoMultipleUsage);
+    m_pEditObject->m_objectFlags.flags = m_pEditObjectType;
+    
+    if (current_type != m_pEditObjectType)
+    {
+        if (m_pEditObjectType == CEditableObject::eoMultipleUsage)
+        {
+            m_pEditObject->m_objectFlags.flags |= CEditableObject::eoUsingLOD;
+        }
+    }
+    RefreshSubProperties();
+}
+
+void CActorTools::OnUsingLodFlagChange(PropValue* V)
+{
+    RefreshSubProperties();
+}
+
+void CActorTools::OnMakeThumbnailClick(ButtonValue* sender, bool& bModif, bool& bSafe)
+{
+    R_ASSERT(m_pEditObject);
+    switch (sender->btn_num) 
+    {
+    case 0:
+    {
+        MakeThumbnail();
+    }
+    break;
+    }
+  
+}
+
+void CActorTools::OnMakeLODClick(ButtonValue* sender, bool& bModif, bool& bSafe)
+{
+    R_ASSERT(m_pEditObject);
+    switch (sender->btn_num)
+    {
+    case 0:
+    {
+        GenerateLOD(true);
+    }
+    case 1:
+    {
+        GenerateLOD(false);
+    }
+    break;
+    }
+}
+
 void  CActorTools::OnBoneShapeClick(ButtonValue* V, bool& bModif, bool& bSafe)
 {
 	R_ASSERT(m_pEditObject);
-    switch (V->btn_num){
-    case 0: m_pEditObject->GenerateBoneShape(false); break;
-    case 1: m_pEditObject->GenerateBoneShape(true); break;
+    switch (V->btn_num)
+    {
+        case 0: m_pEditObject->GenerateBoneShape(false); break;
+        case 1: m_pEditObject->GenerateBoneShape(true); break;
 	}
 }
 
@@ -490,7 +543,7 @@ void  CActorTools::OnBoneCreateDeleteClick(ButtonValue* V, bool& bModif, bool& b
             	Msg("! Select 1 bone please.");
                 return;
             }
-           if (ELog.DlgMsg(mtConfirmation, TMsgDlgButtons() << mbYes << mbNo, "Delete selected bone?") == mrYes)
+           if (ELog.DlgMsg(mtConfirmation,  mbYes | mbNo, "Delete selected bone?") == mrYes)
            {
            		m_pEditObject->DeleteBone(sel_bones[0]);
             	bModif = true;
@@ -505,34 +558,8 @@ void  CActorTools::OnBoneCreateDeleteClick(ButtonValue* V, bool& bModif, bool& b
                 return;
             }
             LPCSTR _bone_name 		= 0;
-
-       /*   if (TfrmChoseItem::SelectItem(smSkeletonBonesInObject, _bone_name, 1, 0, 0, m_pEditObject) )
-          {
-            Msg("selected bone %s", _bone_name);
-            CBone* BSelected	 		= m_pEditObject->FindBoneByName(_bone_name);
-            R_ASSERT					(BSelected);
-
-            CBone* BEditable 			= sel_bones[0];
-            Fmatrix matrix1, matrix2;
-            Fvector offset, rotate1, rotate2, rotate;
-            float length = 0.01f;
-
-            m_pEditObject->GotoBindPose();
-
-			matrix1.identity();
-			matrix2.identity();
-            GetBindAbsolutePosition	(BEditable, matrix1);
-            GetBindAbsolutePosition	(BSelected, matrix2);
-
-            Fmatrix R;
-            R.mul(matrix1.invert(), matrix2).getXYZi(rotate);
-            offset.set(R.c);
-
-            BEditable->SetRestParams		(length, offset, rotate);
-
-            m_pEditObject->GotoBindPose();
-          }*/
-            not_implemented();
+            UIChooseForm::SelectItem(smSkeletonBonesInObject, 1, 0, 0, m_pEditObject);
+            m_ChooseSkeletonBones = true;
         }break;
 	}
     if(bModif)
@@ -542,18 +569,69 @@ void  CActorTools::OnBoneCreateDeleteClick(ButtonValue* V, bool& bModif, bool& b
     }
 }
 
-bool CActorTools::OnBoneNameAfterEdit	(PropValue* sender, shared_str& edit_val)
+void CActorTools::OnDrawUI()
 {
-	R_ASSERT(m_pEditObject);
+    if (m_ChooseSkeletonBones)
+    {
+
+        xr_string str;
+        bool ok;
+        if (UIChooseForm::GetResult(ok, str))
+        {
+            if (ok)
+            {
+
+                BoneVec 		sel_bones;
+                m_pEditObject->GetSelectedBones(sel_bones);
+                Msg("selected bone %s", str.c_str());
+                CBone* BSelected = m_pEditObject->FindBoneByName(str.c_str());
+                R_ASSERT(BSelected);
+
+                CBone* BEditable = sel_bones[0];
+                Fmatrix matrix1, matrix2;
+                Fvector offset, rotate1, rotate2, rotate;
+                float length = 0.01f;
+
+                m_pEditObject->GotoBindPose();
+
+                matrix1.identity();
+                matrix2.identity();
+                GetBindAbsolutePosition(BEditable, matrix1);
+                GetBindAbsolutePosition(BSelected, matrix2);
+
+                Fmatrix R;
+                R.mul(matrix1.invert(), matrix2).getXYZi(rotate);
+                offset.set(R.c);
+
+                BEditable->SetRestParams(length, offset, rotate);
+
+                m_pEditObject->GotoBindPose();
+            }
+            m_ChooseSkeletonBones = false;
+            UIChooseForm::Update();
+        }
+
+    }
+}
+bool CActorTools::OnBoneNameAfterEdit(PropValue* sender, shared_str& edit_val)
+{
+    R_ASSERT(m_pEditObject);
     BoneVec 		sel_bones;
-    m_pEditObject->GetSelectedBones		(sel_bones);
-   	CBone* B 		= sel_bones.size()?sel_bones[0]:NULL;
-    R_ASSERT		(B);
-
-	m_pEditObject->RenameBone(B, edit_val.c_str());
-
-	m_Flags.set(flRefreshProps, TRUE);
+    m_pEditObject->GetSelectedBones(sel_bones);
+    CBone* B = sel_bones.size() ? sel_bones[0] : NULL;
+    R_ASSERT(B);
+    for (auto& bone : m_pEditObject->Bones())
+    {
+        if (bone->Name() == edit_val)
+            return false;
+    }
+    m_pEditObject->RenameBone(B, edit_val.c_str());
     return true;
+}
+
+void CActorTools::OnBoneNameChangeEvent(PropValue* sender)
+{
+    UpdateProperties();
 }
 
 void  CActorTools::OnBoneEditClick(ButtonValue* V, bool& bModif, bool& bSafe)
@@ -636,7 +714,7 @@ void CActorTools::FillBoneProperties(PropItemVec& items, LPCSTR pref, ListItem* 
     	PropValue* V;
         PHelper().CreateCaption		(items, PrepareKey(pref,"Bone\\Name"),						BONE->Name());
 
-		PHelper().CreateNameCB		(items, PrepareKey(pref,"Bone\\NameEditable"), 				&BONE->NameRef(), 0, 0, RTextValue::TOnAfterEditEvent(this,&CActorTools::OnBoneNameAfterEdit));
+        PHelper().CreateNameCB(items, PrepareKey(pref, "Bone\\NameEditable"), &BONE->NameRef(), 0,0, RTextValue::TOnAfterEditEvent(this, &CActorTools::OnBoneNameAfterEdit))->OnChangeEvent.bind(this, &CActorTools::OnBoneNameChangeEvent);
 
 //.		PHelper().CreateCaption		(items, PrepareKey(pref,"Bone\\Influence"),					shared_str().sprintf("%d vertices",0));
 		PHelper().CreateChoose		(items,	PrepareKey(pref,"Bone\\Game Material"),				&BONE->game_mtl, smGameMaterial);
@@ -655,7 +733,7 @@ void CActorTools::FillBoneProperties(PropItemVec& items, LPCSTR pref, ListItem* 
 	        PHelper().CreateVector	(items, PrepareKey(pref,"Bone\\Shape\\Box\\Center"),		&BONE->shape.box.m_translate, -10000.f, 10000.f);
 	        B=PHelper().CreateButton(items, PrepareKey(pref,"Bone\\Shape\\Box\\Align Axis"),	"X,Y,Z",0);
             B->OnBtnClickEvent.bind	(this,&CActorTools::OnBoxAxisClick);
-            B->tag 					= (int)BONE;
+            B->tag 					= (size_t)BONE;
 	        PHelper().CreateVector	(items, PrepareKey(pref,"Bone\\Shape\\Box\\Half Size"),  	&BONE->shape.box.m_halfsize, 0.f, 1000.f);
         break;
         case SBoneShape::stSphere:
@@ -666,7 +744,7 @@ void CActorTools::FillBoneProperties(PropItemVec& items, LPCSTR pref, ListItem* 
 	        PHelper().CreateVector	(items, PrepareKey(pref,"Bone\\Shape\\Cylinder\\Center"),	&BONE->shape.cylinder.m_center, -10000.f, 10000.f);
 	        B=PHelper().CreateButton(items, PrepareKey(pref,"Bone\\Shape\\Cylinder\\Align Axis"),"X,Y,Z",0);
             B->OnBtnClickEvent.bind	(this,&CActorTools::OnCylinderAxisClick);
-            B->tag 					= (int)BONE;
+            B->tag 					= (size_t)BONE;
 	        PHelper().CreateFloat  	(items, PrepareKey(pref,"Bone\\Shape\\Cylinder\\Height"),	&BONE->shape.cylinder.m_height, 0.f, 1000.f);
 	        PHelper().CreateFloat  	(items, PrepareKey(pref,"Bone\\Shape\\Cylinder\\Radius"),	&BONE->shape.cylinder.m_radius, 0.f, 1000.f);
         break;
@@ -770,34 +848,58 @@ void CActorTools::FillSurfaceProperties(PropItemVec& items, LPCSTR pref, ListIte
     }
 }
 //------------------------------------------------------------------------------
+xr_token eo_type_token[] = {
+    { "Static",					0},
+    { "Dynamic",				CEditableObject::eoDynamic},
+    { "HOM",					CEditableObject::eoHOM},
+    { "Multiple Usage",			CEditableObject::eoMultipleUsage},
+    { "Sound Occluder",			CEditableObject::eoSoundOccluder},
+    { 0,						0}
+};
 
 void CActorTools::FillObjectProperties(PropItemVec& items, LPCSTR pref, ListItem* sender)
 {
-	R_ASSERT(m_pEditObject);
-    PropValue* V=0;
-    PHelper().CreateFlag32			(items, "Object\\Flags\\Make Progressive",	&m_pEditObject->m_objectFlags,			CEditableObject::eoProgressive);
-    PHelper().CreateFlag32			(items, "Object\\Flags\\HQ Geometry",	&m_pEditObject->m_objectFlags,			CEditableObject::eoHQExport);
+    R_ASSERT(m_pEditObject);
+    PropValue* V = 0;
+    m_pEditObjectType = m_pEditObject->m_objectFlags.flags & (CEditableObject::eoDynamic | CEditableObject::eoHOM | CEditableObject::eoSoundOccluder | CEditableObject::eoMultipleUsage);
+    PHelper().CreateToken32(items, "Object\\Object Type", &m_pEditObjectType, eo_type_token)->OnChangeEvent.bind(this, &CActorTools::OnTypeChange);
 
-    V=PHelper().CreateVector		(items, "Object\\Transform\\Position",		&m_pEditObject->a_vPosition, 	-10000,	10000,0.01,2);
-    V->OnChangeEvent.bind			(this,&CActorTools::OnChangeTransform);
-    V=PHelper().CreateAngle3		(items, "Object\\Transform\\Rotation",		&m_pEditObject->a_vRotate, 		-10000,	10000,0.1,1);
-    V->OnChangeEvent.bind			(this,&CActorTools::OnChangeTransform);
-    V=PHelper().CreateCaption		(items, "Object\\Transform\\BBox Min",		shared_str().printf("{%3.2f, %3.2f, %3.2f}",VPUSH(m_pEditObject->GetBox().min)));
-    V=PHelper().CreateCaption		(items, "Object\\Transform\\BBox Max",		shared_str().printf("{%3.2f, %3.2f, %3.2f}",VPUSH(m_pEditObject->GetBox().max)));
+    if (m_pEditObjectType & CEditableObject::eoDynamic)
+    {
+        PHelper().CreateFlag32(items, "Object\\Flags\\Make Progressive", &m_pEditObject->m_objectFlags, CEditableObject::eoProgressive);
+        PHelper().CreateFlag32(items, "Object\\Flags\\HQ Geometry", &m_pEditObject->m_objectFlags, CEditableObject::eoHQExport);
+    }
+    else if (m_pEditObjectType & CEditableObject::eoMultipleUsage)
+    {
+        PHelper().CreateFlag32(items, "Object\\Flags\\Using LOD", &m_pEditObject->m_objectFlags, CEditableObject::eoUsingLOD)->OnChangeEvent.bind(this, &CActorTools::OnUsingLodFlagChange);
+    }
 
-//.    PHelper().CreateChoose		 (items, "Object\\LOD\\Reference",  			&m_pEditObject->m_LODs, smObject);
-    PHelper().CreateChoose			(items, "Object\\LOD\\Reference",  			&m_pEditObject->m_LODs, smVisual);
-    m_pEditObject->FillSummaryProps	("Object\\Summary",items);
+    V = PHelper().CreateVector(items, "Object\\Transform\\Position", &m_pEditObject->a_vPosition, -10000, 10000, 0.01, 2);
+    V->OnChangeEvent.bind(this, &CActorTools::OnChangeTransform);
+    V = PHelper().CreateAngle3(items, "Object\\Transform\\Rotation", &m_pEditObject->a_vRotate, -10000, 10000, 0.1, 1);
+    V->OnChangeEvent.bind(this, &CActorTools::OnChangeTransform);
+    V = PHelper().CreateVector(items, "Object\\Transform\\Scale", &m_pEditObject->t_vScale, -10000, 10000, 0.1, 1);
+    V->OnChangeEvent.bind(this, &CActorTools::OnChangeTransform);
+    V = PHelper().CreateCaption(items, "Object\\Transform\\BBox Min", shared_str().printf("{%3.2f, %3.2f, %3.2f}", VPUSH(m_pEditObject->GetBox().min)));
+    V = PHelper().CreateCaption(items, "Object\\Transform\\BBox Max", shared_str().printf("{%3.2f, %3.2f, %3.2f}", VPUSH(m_pEditObject->GetBox().max)));
+
+    //.    PHelper().CreateChoose		 (items, "Object\\LOD\\Reference",  			&m_pEditObject->m_LODs, smObject);
+    PHelper().CreateChoose(items, "Object\\LOD\\Reference", &m_pEditObject->m_LODs, smVisual);
+    if (m_pEditObject->m_objectFlags.flags & CEditableObject::eoUsingLOD)
+    {
+        PHelper().CreateButton(items, "Object\\LOD\\Action", "Make HQ,Make LQ", ButtonValue::flFirstOnly)->OnBtnClickEvent.bind(this, &CActorTools::OnMakeLODClick);
+    }
+    PHelper().CreateButton(items, "Object\\Action", "Make Thumbnail", ButtonValue::flFirstOnly)->OnBtnClickEvent.bind(this, &CActorTools::OnMakeThumbnailClick);
+    m_pEditObject->FillSummaryProps("Object\\Summary", items);
 }
 //------------------------------------------------------------------------------
 
 void CActorTools::SelectListItem(LPCSTR pref, LPCSTR name, bool bVal, bool bLeaveSel, bool bExpand)
 {
-    not_implemented_low();
-	/*xr_string nm = (name&&name[0])?PrepareKey(pref,name).c_str():xr_string(pref).c_str();
-	m_ObjectItems->SelectItem(nm.c_str(),bVal,bLeaveSel,bExpand);
-	if (pref){
-    	m_ObjectItems->SelectItem(pref,true,true,bExpand);
+	xr_string nm = (name&&name[0])?PrepareKey(pref,name).c_str():xr_string(pref).c_str();
+	m_ObjectItems->SelectItem(nm.c_str());
+	/*if (pref){
+    	m_ObjectItems->SelectItem(pref);
     }*/
 }
 //------------------------------------------------------------------------------

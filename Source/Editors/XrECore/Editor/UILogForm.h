@@ -13,11 +13,13 @@ public:
 	static void Show();
 	static void Hide();
 	static void Update();
-
+	static void Destroy();
 	
 private:
-	static xr_vector<xr_string> List;
+	static xr_vector<xr_string>*List;
+	static xr_vector<xr_string>* GetList();
 	static bool bAutoScroll;
+	static bool bOnlyError;
 };
 //---------------------------------------------------------------------------
 #endif

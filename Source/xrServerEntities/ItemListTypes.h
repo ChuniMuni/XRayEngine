@@ -18,10 +18,12 @@ public:
     TOnListItemFocused	OnItemFocused;
   //  TOnDrawThumbnail	OnDrawThumbnail;
 public:
+    UIItemListForm* Parent;
     int 				tag;
     LPVOID				m_Object;
     int					icon_index;
     u32					prop_color;
+    bool selected;
 public:
     enum{
     	flShowCB		= (1<<0),
@@ -33,7 +35,7 @@ public:
     };
     Flags32				m_Flags;
 public:
-						ListItem		(int _type):type(_type),prop_color(0),item(0),key(0),tag(0),icon_index(-1),/*OnDrawThumbnail(0),*/OnItemFocused(0),m_Object(0){m_Flags.zero();}
+						ListItem		(int _type):type(_type), selected(false),prop_color(0),item(0),key(0),tag(0),icon_index(-1),/*OnDrawThumbnail(0),*/OnItemFocused(0),m_Object(0){m_Flags.zero();}
 	virtual 			~ListItem		(){};
     void				SetName			(LPCSTR _key){key=_key;}
 

@@ -3,6 +3,7 @@
 #include "stdafx.h"
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
+    if (!IsDebuggerPresent()) Debug._initialize(false);
     Core._initialize("Actor", ELogCallback,1,"fs.ltx",true);
 
     Tools = xr_new<CActorTools>();
@@ -13,11 +14,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     UIMainForm* MainForm = xr_new< UIMainForm>();
     ::MainForm = MainForm;
     UI->Push(MainForm, false);
-    while (true)
+    while (MainForm->Frame())
     {
-        MainForm->Frame();
     }
     xr_delete(MainForm);
-
+    Core._destroy();
     return 0;
 }

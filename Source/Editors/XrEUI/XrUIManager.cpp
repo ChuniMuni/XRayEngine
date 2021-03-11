@@ -12,11 +12,13 @@ XrUIManager::~XrUIManager()
 {
 }
 
-void XrUIManager::Initialize(HWND hWnd, IDirect3DDevice9* device)
+void XrUIManager::Initialize(HWND hWnd, IDirect3DDevice9* device, const char* ini_path)
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
+    xr_strcpy(m_name_ini, ini_path);
+    io.IniFilename = m_name_ini;
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
@@ -25,10 +27,12 @@ void XrUIManager::Initialize(HWND hWnd, IDirect3DDevice9* device)
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
     // Setup Dear ImGui style
     ImGui::StyleColorsClassic();
-    ImGui::Spectrum::LoadFont();
-    //ImGui::GetStyle().IndentSpacing = 12;
+   // ImGui::Spectrum::LoadFont();
+    ImGui::GetStyle().ItemSpacing = ImVec2(3,3);
+    ImGui::GetStyle().FramePadding = ImVec2(3,1);
     ImGui_ImplWin32_Init(hWnd);
     ImGui_ImplDX9_Init(device);
+
 }
 
 void XrUIManager::Destroy()
@@ -50,59 +54,76 @@ void XrUIManager::ResetEnd()
 }
 
 
-void XrUIManager::RenderSpecial()
+void XrUIManager::OnDrawUI()
 {
 }
 
 void XrUIManager::ApplyShortCut(DWORD Key)
 {
+    if ((ImGui::GetIO().WantTextInput))return;
 	bool IsFail = true;
 	if (Key >= 'A' && Key <= 'Z')
 	{
 		IsFail = false;
 	}
-	if (Key >= '0' && Key <= '9')
+	else if (Key >= '0' && Key <= '9')
 	{
 		IsFail = false;
 	}
-	switch (Key)
-	{
-	case VK_LEFT:
-	case VK_RIGHT:
-	case VK_UP:
-	case VK_DOWN:
-	case VK_NUMPAD0:
-	case VK_NUMPAD1:
-	case VK_NUMPAD2:
-	case VK_NUMPAD3:
-	case VK_NUMPAD4:
-	case VK_NUMPAD5:
-	case VK_NUMPAD6:
-	case VK_NUMPAD7:
-	case VK_NUMPAD8:
-	case VK_NUMPAD9:
-	case VK_F1:
-	case VK_F2:
-	case VK_F3:
-	case VK_F4:
-	case VK_F5:
-	case VK_F6:
-	case VK_F7:
-	case VK_F8:
-	case VK_F9:
-	case VK_F10:
-	case VK_F11:
-	case VK_F12:
-	case VK_DELETE:
-	case VK_ADD:
-	case VK_SUBTRACT:
-	case VK_MULTIPLY:
-	case VK_DIVIDE:
-        IsFail = false;
-        break;
-	default:
-		break;
-	}
+    else
+    {
+        switch (Key)
+        {
+        case VK_LEFT:
+        case VK_RIGHT:
+        case VK_UP:
+        case VK_DOWN:
+        case VK_NUMPAD0:
+        case VK_NUMPAD1:
+        case VK_NUMPAD2:
+        case VK_NUMPAD3:
+        case VK_NUMPAD4:
+        case VK_NUMPAD5:
+        case VK_NUMPAD6:
+        case VK_NUMPAD7:
+        case VK_NUMPAD8:
+        case VK_NUMPAD9:
+        case VK_F1:
+        case VK_F2:
+        case VK_F3:
+        case VK_F4:
+        case VK_F5:
+        case VK_F6:
+        case VK_F7:
+        case VK_F8:
+        case VK_F9:
+        case VK_F10:
+        case VK_F11:
+        case VK_F12:
+        case VK_DELETE:
+        case VK_ADD:
+        case VK_SUBTRACT:
+        case VK_MULTIPLY:
+        case VK_DIVIDE:
+        case VK_OEM_PLUS:
+        case VK_OEM_MINUS:
+        case VK_OEM_1:
+        case VK_OEM_COMMA:
+        case VK_OEM_PERIOD:
+        case VK_OEM_2:
+        case VK_OEM_4:
+        case VK_OEM_5:
+        case VK_OEM_6:
+        case VK_OEM_7:
+        case VK_SPACE:
+        case VK_CANCEL:
+        case VK_RETURN:
+            IsFail = false;
+            break;
+        default:
+            break;
+        }
+    }
     if (IsFail)return;
 
     int ShiftState = ssNone;
@@ -145,22 +166,24 @@ void XrUIManager::Draw()
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(3, 2));
         ImGui::Begin("Master DockSpace", NULL, window_flags);
         ImGuiID dockMain = ImGui::GetID("MyDockspace");
 
-        // Save off menu bar height for later.
         m_MenuBarHeight = ImGui::GetWindowBarHeight();
+        // Save off menu bar height for later.
 
         ImGui::DockSpace(dockMain);
         ImGui::End();
-        ImGui::PopStyleVar(3);
+        ImGui::PopStyleVar(4);
+
     }
 	for (XrUI* ui : m_UIArray)
 	{
 		ui->Draw();
 	}
 
-    RenderSpecial();
+    OnDrawUI();
     ImGui::EndFrame();
     ImGui::Render();
     ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
@@ -221,6 +244,9 @@ LRESULT XrUIManager::WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 {
     switch (msg)
     {
+    case WM_DESTROY:
+        ::PostQuitMessage(0);
+        return 0;
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN:
         switch (wParam)

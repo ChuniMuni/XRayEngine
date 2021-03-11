@@ -31,7 +31,6 @@ class CActorMain: public TUI{
 	typedef TUI inherited;
 
     virtual void 	RealUpdateScene			();
-    virtual void 	RealQuit				();
 public:
     				CActorMain 				();
     virtual 		~CActorMain				();
@@ -39,7 +38,7 @@ public:
     virtual LPSTR	GetCaption				();
 
     virtual void 	ResetStatus				();
-    virtual void 	SetStatus				(LPSTR s, bool bOutLog);
+    virtual void 	SetStatus				(LPCSTR s, bool bOutLog);
     virtual void	ProgressDraw			();
     virtual void 	OutCameraPos			();
     virtual void 	OutUICursorPos			();
@@ -55,7 +54,9 @@ public:
     // commands
 	virtual	void	RegisterCommands		(); 
 protected:
-    virtual void    RenderSpecial();
+    virtual void    OnDrawUI();
+
+    virtual Ivector2 GetRenderMousePosition()const;
 };    
 extern CActorMain*	AUI;
 

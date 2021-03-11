@@ -304,10 +304,8 @@
 #include "OpenAutomate\OpenAutomate_Internal.h"
 #include <string.h>
 #include <stdlib.h>
-#ifdef WINDOWS
-#ifdef X64
+#ifdef _WIN32
 #define WIN32
-#endif
 #endif
 #ifdef WIN32
 #include <windows.h>
@@ -315,7 +313,7 @@
 
 #ifdef _WIN64
 typedef __int64 OA_NATIVE_INT;
-#elif WIN32
+#elif _WIN32
 typedef int __w64 OA_NATIVE_INT;
 #else
 #include <dlfcn.h>

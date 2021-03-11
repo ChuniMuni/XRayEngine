@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "..\BearBundle\BearCore\BearCore.hpp"
 #pragma hdrstop
 
 #include "xrdebug.h"
@@ -24,10 +25,12 @@ extern bool shared_str_initialized;
         static BOOL			bException	= TRUE;
     #   define USE_BUG_TRAP
 #else
-    #	define DEBUG_INVOKE	__asm int 3
+    #	define DEBUG_INVOKE	BearCore::GetDebug()->Break();
         static BOOL			bException	= FALSE;
 #endif
-
+#ifndef _DEBUG
+#define USE_BUG_TRAP
+#endif
 #ifndef USE_BUG_TRAP
 #	include <exception>
 #endif
@@ -40,18 +43,13 @@ extern bool shared_str_initialized;
 #include <dbghelp.h>						// MiniDump flags
 
 #ifdef USE_BUG_TRAP
-#	include "../3rd party/bugtrap/bugtrap/bugtrap.h"						// for BugTrap functionality
-    #ifndef __BORLANDC__
-        #	pragma comment(lib,"BugTrap.lib")		// Link to ANSI DLL
-    #else
-        #	pragma comment(lib,"BugTrapB.lib")		// Link to ANSI DLL
-    #endif
+#	include "../External/BugTrap/BugTrap.h"						// for BugTrap functionality
 #endif // USE_BUG_TRAP
 
 #include <new.h>							// for _set_new_mode
 #include <signal.h>							// for signals
 
-#ifdef DEBUG
+#ifdef _DEBUG
 #	define USE_OWN_ERROR_MESSAGE_WINDOW
 #else // DEBUG
 #	define USE_OWN_MINI_DUMP
@@ -61,21 +59,15 @@ XRCORE_API	xrDebug		Debug;
 
 static bool	error_after_dialog = false;
 
-extern void BuildStackTrace();
-extern char g_stackTrace[100][4096];
-extern int	g_stackTraceCount;
 
 void LogStackTrace	(LPCSTR header)
 {
 	if (!shared_str_initialized)
 		return;
 
-	BuildStackTrace	();		
 
 	Msg				("%s",header);
 
-	for (int i=1; i<g_stackTraceCount; ++i)
-		Msg			("%s",g_stackTrace[i]);
 }
 
 void xrDebug::gather_info		(const char *expression, const char *description, const char *argument0, const char *argument1, const char *file, int line, const char *function, LPSTR assertion_info, u32 const assertion_info_size)
@@ -141,17 +133,7 @@ void xrDebug::gather_info		(const char *expression, const char *description, con
 #ifdef USE_OWN_ERROR_MESSAGE_WINDOW
 		buffer			+= xr_sprintf(buffer,assertion_size - u32(buffer - buffer_base),"stack trace:%s%s",endline,endline);
 #endif // USE_OWN_ERROR_MESSAGE_WINDOW
-
-		BuildStackTrace	();		
-
-		for (int i=2; i<g_stackTraceCount; ++i) {
-			if (shared_str_initialized)
-				Msg		("%s",g_stackTrace[i]);
-
-#ifdef USE_OWN_ERROR_MESSAGE_WINDOW
-			buffer		+= xr_sprintf(buffer,assertion_size - u32(buffer - buffer_base),"%s%s",g_stackTrace[i],endline);
-#endif // USE_OWN_ERROR_MESSAGE_WINDOW
-		}
+		
 
 		if (shared_str_initialized)
 			FlushLog	();
@@ -254,10 +236,7 @@ LPCSTR xrDebug::error2string	(long code)
 	LPCSTR				result	= 0;
 	static	string1024	desc_storage;
 
-#ifdef _M_AMD64
-#else
 	result				= DXGetErrorDescription	(code);
-#endif
 	if (0==result)
 	{
 		FormatMessage	(FORMAT_MESSAGE_FROM_SYSTEM,0,code,0,desc_storage,sizeof(desc_storage)-1,0);
@@ -373,7 +352,7 @@ void CALLBACK PreErrorHandler	(INT_PTR)
 	if (*g_bug_report_file)
 		BT_AddLogFile		(g_bug_report_file);
 
-	BT_MakeSnapshot			( 0 );
+	BT_SaveSnapshot			( 0 );
 #endif // USE_BUG_TRAP
 }
 
@@ -457,7 +436,6 @@ please Submit Bug or save report and email it manually (button More...).\
 #endif // USE_BUG_TRAP
 
 #if 1
-extern void BuildStackTrace(struct _EXCEPTION_POINTERS *pExceptionInfo);
 typedef LONG WINAPI UnhandledExceptionFilterType(struct _EXCEPTION_POINTERS *pExceptionInfo);
 typedef LONG ( __stdcall *PFNCHFILTFN ) ( EXCEPTION_POINTERS * pExPtrs ) ;
 extern "C" BOOL __stdcall SetCrashHandlerFilter ( PFNCHFILTFN pFn );
@@ -613,7 +591,6 @@ LONG WINAPI UnhandledFilter	(_EXCEPTION_POINTERS *pExceptionInfo)
 
 	if (!error_after_dialog && !strstr(GetCommandLine(),"-no_call_stack_assert")) {
 		CONTEXT				save = *pExceptionInfo->ContextRecord;
-		BuildStackTrace		(pExceptionInfo);
 		*pExceptionInfo->ContextRecord = save;
 
 		if (shared_str_initialized)
@@ -625,15 +602,7 @@ LONG WINAPI UnhandledFilter	(_EXCEPTION_POINTERS *pExceptionInfo)
 		}
 
 		string4096			buffer;
-		for (int i=0; i<g_stackTraceCount; ++i) {
-			if (shared_str_initialized)
-				Msg			("%s",g_stackTrace[i]);
-			xr_sprintf			(buffer, sizeof(buffer), "%s\r\n",g_stackTrace[i]);
-#ifdef DEBUG
-			if (!IsDebuggerPresent())
-				os_clipboard::update_clipboard(buffer);
-#endif // #ifdef DEBUG
-		}
+	
 
 		if (*error_message) {
 			if (shared_str_initialized)
@@ -660,6 +629,7 @@ LONG WINAPI UnhandledFilter	(_EXCEPTION_POINTERS *pExceptionInfo)
 			Debug.get_on_dialog()	(true);
 
 		MessageBox			(NULL,"Fatal error occured\n\nPress OK to abort program execution","Fatal error",MB_OK|MB_ICONERROR|MB_SYSTEMMODAL);
+		exit(-1);
 	}
 #endif // USE_OWN_ERROR_MESSAGE_WINDOW
 

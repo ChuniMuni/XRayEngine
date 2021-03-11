@@ -138,7 +138,7 @@ CTextValue* 	CPropHelper::CreateCName	(PropItemVec& items, shared_str key, LPSTR
     V->OnAfterEditEvent.bind		(this,&CPropHelper::CNameAfterEdit);
     V->OnBeforeEditEvent.bind		(this,&CPropHelper::CNameBeforeEdit);
     V->Owner()->OnDrawTextEvent.bind(this,&CPropHelper::CNameDraw);
-    V->tag							= (u32)owner; VERIFY(owner);
+    V->tag							= (size_t)owner; VERIFY(owner);
     if (V->Owner()->m_Flags.is(PropItem::flMixed)) V->Owner()->m_Flags.set(PropItem::flDisabled,TRUE);
     return V;					
 }
@@ -163,7 +163,7 @@ RTextValue* 	CPropHelper::CreateName		(PropItemVec& items, shared_str key, share
     V->OnAfterEditEvent.bind		(this,&CPropHelper::NameAfterEdit);
     V->OnBeforeEditEvent.bind		(this,&CPropHelper::NameBeforeEdit);
     V->Owner()->OnDrawTextEvent.bind(this,&CPropHelper::NameDraw);
-    V->tag							= (u32)owner; VERIFY(owner);
+    V->tag							= (size_t)owner; VERIFY(owner);
     if (V->Owner()->m_Flags.is(PropItem::flMixed)) V->Owner()->m_Flags.set(PropItem::flDisabled,TRUE);
     return V;					
 }
@@ -236,9 +236,7 @@ bool CPropHelper::NameAfterEdit(PropValue* sender, shared_str& edit_val)
 {
 	RTextValue* V	= dynamic_cast<RTextValue*>(sender); VERIFY(V);
     ListItem* L		= (ListItem*)sender->tag;
-    not_implemented();
-    return false;
-	//return 			LHelper().NameAfterEdit(L,V->GetValue().c_str(),edit_val);
+	return 			LHelper().NameAfterEdit(L,V->GetValue().c_str(),edit_val);
 }
 void CPropHelper::CNameDraw(PropValue* sender, xr_string& draw_val)
 {
@@ -256,8 +254,7 @@ bool CPropHelper::CNameAfterEdit(PropValue* sender, xr_string& edit_val)
 	CTextValue* V	= dynamic_cast<CTextValue*>(sender); VERIFY(V);
     ListItem* L		= (ListItem*)sender->tag;
     shared_str tmp	= edit_val.c_str();
-    not_implemented();
-    bool accepted = false;/*LHelper().NameAfterEdit(L,V->GetValue(),tmp);*/
+    bool accepted = LHelper().NameAfterEdit(L,V->GetValue(),tmp);
     edit_val		= tmp.c_str();
     return 			accepted;
 }
